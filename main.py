@@ -44,6 +44,188 @@ def setup_directories():
         Path(directory).mkdir(parents=True, exist_ok=True)
         logger.info(f"Created directory: {directory}")
 
+def deploy_with_docker():
+    """Deploy the OpenStack RCA System using Docker"""
+    import subprocess
+    import json
+    import docker
+    from pathlib import Path
+    
+    logger.info("🚀 Starting Docker deployment...")
+    
+    try:
+        # Check if Docker is installed
+        subprocess.run(['docker', '--version'], check=True, capture_output=True)
+        logger.info("✅ Docker is installed")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        logger.error("❌ Docker is not installed or not in PATH")
+        logger.info("Please install Docker first:")
+        logger.info("  Ubuntu/Debian: sudo apt update && sudo apt install docker.io")
+        logger.info("  Amazon Linux: sudo yum install docker")
+        return False
+    
+    try:
+        # Load Docker configuration
+        docker_config = None
+        config_file = "config/docker_config.json"
+        
+        # Try to get config from config.py first
+        try:
+            if hasattr(Config, 'DOCKER_CONFIG'):
+                docker_config = Config.DOCKER_CONFIG
+                logger.info("✅ Using Docker config from config.py")
+            else:
+                # Fall back to JSON file
+                if os.path.exists(config_file):
+                    with open(config_file, 'r') as f:
+                        docker_config = json.load(f)
+                    logger.info(f"✅ Using Docker config from {config_file}")
+        except Exception as e:
+            logger.warning(f"Could not load Docker config: {e}")
+        
+        # Use default config if none found
+        if not docker_config:
+            docker_config = {
+                'image_latest': 'chandanbam/openstack-rca-system:latest',
+                'port': 7051
+            }
+            logger.info("⚠️ Using default Docker configuration")
+            logger.info("To set custom config, run: python docker_build_deploy.py")
+        
+        docker_image = docker_config.get('image_latest', 'chandanbam/openstack-rca-system:latest')
+        port = docker_config.get('port', 7051)
+        
+        logger.info(f"📦 Docker image: {docker_image}")
+        logger.info(f"🌐 Port: {port}")
+        
+        # Initialize Docker client
+        client = docker.from_env()
+        
+        # Stop and remove existing container if running
+        container_name = "openstack-rca-system"
+        try:
+            existing_container = client.containers.get(container_name)
+            logger.info("🛑 Stopping existing container...")
+            existing_container.stop()
+            existing_container.remove()
+            logger.info("✅ Existing container removed")
+        except docker.errors.NotFound:
+            logger.info("ℹ️ No existing container found")
+        except Exception as e:
+            logger.warning(f"Warning removing existing container: {e}")
+        
+        # Pull latest image
+        logger.info(f"📥 Pulling latest image: {docker_image}")
+        try:
+            client.images.pull(docker_image)
+            logger.info("✅ Image pulled successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to pull image: {e}")
+            logger.info("Make sure the image exists on DockerHub")
+            return False
+        
+        # Create volume mounts
+        volumes = {
+            # Vector DB data
+            str(Path.cwd() / "data" / "vector_db"): {
+                'bind': '/app/data/vector_db',
+                'mode': 'rw'
+            },
+            # Cache data
+            str(Path.cwd() / "data" / "cache"): {
+                'bind': '/app/data/cache',
+                'mode': 'rw'
+            },
+            # Models directory
+            str(Path.cwd() / "models"): {
+                'bind': '/app/models',
+                'mode': 'rw'
+            },
+            # Logs directory
+            str(Path.cwd() / "logs"): {
+                'bind': '/app/logs',
+                'mode': 'rw'
+            },
+            # Temp directory for downloads
+            str(Path.cwd() / "temp"): {
+                'bind': '/app/temp',
+                'mode': 'rw'
+            }
+        }
+        
+        # Create directories if they don't exist
+        for local_path in volumes.keys():
+            Path(local_path).mkdir(parents=True, exist_ok=True)
+            logger.info(f"📁 Ensured directory exists: {local_path}")
+        
+        # Environment variables for MLflow and AWS (if available)
+        environment = {}
+        
+        # Pass through environment variables
+        env_vars = [
+            'ANTHROPIC_API_KEY',
+            'AWS_ACCESS_KEY_ID', 
+            'AWS_SECRET_ACCESS_KEY',
+            'AWS_DEFAULT_REGION',
+            'MLFLOW_TRACKING_URI',
+            'MLFLOW_ARTIFACT_ROOT',
+            'MLFLOW_S3_ENDPOINT_URL'
+        ]
+        
+        for env_var in env_vars:
+            if env_var in os.environ:
+                environment[env_var] = os.environ[env_var]
+                logger.info(f"✅ Passing environment variable: {env_var}")
+        
+        # Add MLFLOW_ENABLED flag if MLflow config exists
+        if any(env_var in os.environ for env_var in ['MLFLOW_TRACKING_URI', 'MLFLOW_ARTIFACT_ROOT']):
+            environment['MLFLOW_ENABLED'] = 'true'
+            logger.info("✅ MLflow enabled for container")
+        
+        # Run container
+        logger.info(f"🚀 Starting container on port {port}...")
+        
+        container = client.containers.run(
+            docker_image,
+            name=container_name,
+            ports={7051: port},
+            volumes=volumes,
+            environment=environment,
+            detach=True,
+            restart_policy={"Name": "unless-stopped"}
+        )
+        
+        logger.info(f"✅ Container started successfully!")
+        logger.info(f"🌐 OpenStack RCA System is running at: http://localhost:{port}")
+        logger.info(f"📊 Container ID: {container.short_id}")
+        logger.info(f"📝 Container name: {container_name}")
+        
+        # Show container logs for a few seconds
+        logger.info("📋 Container startup logs:")
+        import time
+        time.sleep(3)
+        logs = container.logs(tail=10).decode('utf-8')
+        for line in logs.split('\n'):
+            if line.strip():
+                logger.info(f"   {line}")
+        
+        logger.info("\n" + "="*60)
+        logger.info("🎉 DEPLOYMENT SUCCESSFUL!")
+        logger.info("="*60)
+        logger.info(f"🌐 Access the app: http://localhost:{port}")
+        logger.info("📊 To view logs: docker logs openstack-rca-system")
+        logger.info("🛑 To stop: docker stop openstack-rca-system")
+        logger.info("🗑️ To remove: docker rm openstack-rca-system")
+        logger.info("="*60)
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Deployment failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
 def train_model_pipeline(clean_vector_db: bool = False, mlflow_manager=None):
     """Train the LSTM model pipeline with optional ChromaDB cleanup and MLflow tracking."""
     logger.info("Starting model training pipeline...")
@@ -703,7 +885,7 @@ def test_model_performance(custom_query: str = None, log_files_path: str = None,
 def main():
     """Main CLI interface"""
     parser = argparse.ArgumentParser(description='OpenStack RCA System')
-    parser.add_argument('--mode', choices=['train', 'analyze', 'streamlit', 'setup', 'vector-db', 'categories', 'test-ml-model'], 
+    parser.add_argument('--mode', choices=['train', 'analyze', 'streamlit', 'setup', 'vector-db', 'categories', 'test-ml-model', 'deploy'], 
                        default='streamlit', help='Operation mode')
     parser.add_argument('--logs', type=str, help='Path to log files directory (for ingest in vector-db mode)')
     parser.add_argument('--issue', type=str, 
@@ -1035,6 +1217,10 @@ def main():
     elif args.mode == 'test-ml-model':
         logger.info("Starting model performance testing...")
         test_model_performance(custom_query=args.custom_query, iterations=args.iterations)
+    
+    elif args.mode == 'deploy':
+        logger.info("Deploying OpenStack RCA System with Docker...")
+        deploy_with_docker()
     
     else:
         logger.error(f"Unknown mode: {args.mode}")

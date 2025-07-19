@@ -37,6 +37,19 @@ An intelligent log analysis system that automatically identifies and analyzes is
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## 📋 Environment Setup
+
+```bash
+# 1. Copy environment template
+cp env.template .env
+
+# 2. Edit with your credentials  
+nano .env  # Add ANTHROPIC_API_KEY and optionally Docker/MLflow/AWS credentials
+
+# 3. Load environment (if using direnv)
+direnv allow  # Loads .envrc automatically
+```
+
 ## 🚀 Quick Start
 
 ### 1. Environment Setup

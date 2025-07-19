@@ -1,0 +1,64 @@
+# Git files
+.git
+.gitignore
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local data (will be mounted as volumes)
+data/vector_db/
+data/cache/
+models/*.keras
+models/*.pkl
+logs/
+temp/
+mlruns/
+
+# Environment files
+.env
+.envrc
+
+# Documentation
+*.md
+docs/
+
+# Test files
+test*/
+*test*
+
+# Jupyter notebooks
+*.ipynb
+
+# Large log files
+*.log
+
+# MLflow artifacts
+mlruns/
+mlartifacts/
+
+# Temporary files
+temp*
+tmp*
+*.tmp
+
+# Build artifacts
+build/
+dist/
+*.egg-info/ 

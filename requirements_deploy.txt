@@ -1,0 +1,29 @@
+# EC2 Deployment Requirements
+# Tools needed to deploy the OpenStack RCA System on EC2
+
+# Docker runtime (installed via system packages)
+# - docker.io
+# - docker-compose
+
+# Python packages for deployment management
+docker>=6.1.0
+python-dotenv>=1.0.0
+boto3>=1.28.0
+click>=8.1.0
+requests>=2.31.0
+
+# AWS CLI tools (optional, for S3 access)
+awscli>=1.29.0
+
+# System monitoring and logging
+psutil>=5.9.0
+
+# Configuration management
+pyyaml>=6.0.0
+toml>=0.10.2
+
+# Networking utilities
+netifaces>=0.11.0
+
+# Process management
+supervisor>=4.2.5 

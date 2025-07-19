@@ -197,3 +197,12 @@ nohup.out
 
 # Profiling
 .prof
+
+# Docker deployment
+config/docker_config.json
+.env
+temp/
+*.tar.gz
+
+# EC2 deployment
+setup_ec2_deployment.sh.log

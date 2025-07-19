@@ -172,3 +172,21 @@ class Config:
         'page_icon': '🔍',
         'layout': 'wide'
     }
+
+    # Docker Configuration
+    DOCKER_CONFIG = {
+        'username': os.getenv('DOCKER_USERNAME', 'chandantech'),
+        'password': os.getenv('DOCKER_PASSWORD', ''),
+        'registry': os.getenv('DOCKER_REGISTRY', 'docker.io'),
+        'repository': os.getenv('DOCKER_REPOSITORY', 'openstack-rca-system'),
+        'image_latest': f"{os.getenv('DOCKER_USERNAME', 'chandantech')}/{os.getenv('DOCKER_REPOSITORY', 'openstack-rca-system')}:latest",
+        'port': 7051,
+        'auto_build': True,
+        'auto_push': True,
+        'build_args': {},
+        'labels': {
+            'maintainer': 'OpenStack RCA Team',
+            'version': '1.0.0',
+            'description': 'OpenStack Root Cause Analysis System'
+        }
+    }
