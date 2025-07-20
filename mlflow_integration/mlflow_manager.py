@@ -234,8 +234,9 @@ class MLflowManager:
             import boto3
             from botocore.exceptions import ClientError
             
-            # Use meaningful run name instead of random run ID
-            run_name = f"openstack-rca-system-staging_{next_version:04d}"
+            # Use meaningful run name based on experiment name instead of random run ID
+            environment = self.experiment_name.split('_')[-1] if '_' in self.experiment_name else 'staging'
+            run_name = f"openstack-rca-system-{environment}_{next_version:04d}"
             meaningful_s3_key = f"group6-capstone/{run_name}/models/{keras_filename}"
             
             try:
@@ -351,8 +352,10 @@ class MLflowManager:
             # Initialize S3 client
             s3_client = boto3.client('s3')
             
-            # List all folders matching the meaningful pattern
-            prefix_pattern = f"{s3_prefix}/openstack-rca-system-staging_" if s3_prefix else "openstack-rca-system-staging_"
+            # List all folders matching the meaningful pattern (use dynamic environment name)
+            environment = self.experiment_name.split('_')[-1] if '_' in self.experiment_name else 'staging'
+            folder_pattern = f"openstack-rca-system-{environment}_"
+            prefix_pattern = f"{s3_prefix}/{folder_pattern}" if s3_prefix else folder_pattern
             
             response = s3_client.list_objects_v2(
                 Bucket=bucket_name,
@@ -372,8 +375,8 @@ class MLflowManager:
                 folder_name = prefix_info['Prefix'].rstrip('/')
                 folder_basename = folder_name.split('/')[-1]
                 
-                # Extract version number from folder name (e.g., openstack-rca-system-staging_0016)
-                if folder_basename.startswith('openstack-rca-system-staging_'):
+                # Extract version number from folder name (e.g., openstack-rca-system-staging_0016, openstack-rca-system-production_0016)
+                if folder_basename.startswith(folder_pattern):
                     try:
                         version_str = folder_basename.split('_')[-1]
                         version = int(version_str)
