@@ -9,6 +9,7 @@ api_keys/
 secrets/
 passwords.txt
 credentials.json
+mlruns/
 
 # Python Environment
 __pycache__/
