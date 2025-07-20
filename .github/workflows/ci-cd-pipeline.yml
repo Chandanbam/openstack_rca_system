@@ -97,7 +97,7 @@ jobs:
     name: Deploy to MLflow & S3
     needs: test-and-train
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy'
     
     steps:
     - name: Checkout code
@@ -164,7 +164,7 @@ jobs:
     name: Build Docker Image
     needs: mlflow-deploy
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy'
     
     steps:
     - name: Checkout code
