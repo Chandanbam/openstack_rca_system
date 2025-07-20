@@ -54,7 +54,7 @@ def mock_environment():
         'MLFLOW_S3_ENDPOINT_URL': 'https://s3.amazonaws.com',
         'AWS_ACCESS_KEY_ID': 'test-access-key',
         'AWS_SECRET_ACCESS_KEY': 'test-secret-key',
-        'AWS_DEFAULT_REGION': 'us-east-1',
+        'AWS_DEFAULT_REGION': 'AWS_DEFAULT_REGION',
         'TESTING': 'true'
     })
     
