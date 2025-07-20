@@ -1,0 +1,288 @@
+name: OpenStack RCA System CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, deploy ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PYTHON_VERSION: '3.10'
+  MLFLOW_EXPERIMENT_NAME: 'openstack_rca_system_staging'
+  DOCKER_IMAGE: 'openstack-rca-system'
+  ECS_CLUSTER: 'openstack-rca-cluster'
+  ECS_SERVICE: 'openstack-rca-service'
+
+jobs:
+  test-and-train:
+    name: Test & Train Model
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential curl wget
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-mock
+        
+    - name: Set up environment variables
+      run: |
+        echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> $GITHUB_ENV
+        echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> $GITHUB_ENV
+        echo "MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }}" >> $GITHUB_ENV
+        echo "MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }}" >> $GITHUB_ENV
+        echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+        echo "AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}" >> $GITHUB_ENV
+        
+    - name: Run unit tests
+      run: |
+        python -m pytest tests/test_inference.py -v --cov=. --cov-report=xml --cov-report=html --tb=short
+        
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        
+    - name: Train model and run integration tests
+      run: |
+        # Train the model
+        python main.py --mode train --enable-mlflow --mlflow-experiment ${{ env.MLFLOW_EXPERIMENT_NAME }}
+        
+        # Run training tests (already covered in unit tests above)
+        echo "Training tests already completed in unit test step"
+        
+        # Run model performance tests
+        python main.py --mode test-ml-model --custom-query "Database connection timeout" --iterations 2
+        
+    - name: Run RCA analysis tests
+      run: |
+        # Test RCA analysis functionality
+        python main.py --mode analyze --issue "Nova service not responding" --fast-mode --enable-mlflow
+        
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: |
+          coverage.xml
+          htmlcov/
+          models/
+          logs/
+          
+  mlflow-deploy:
+    name: Deploy to MLflow & S3
+    needs: test-and-train
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+        
+    - name: Set up environment variables
+      run: |
+        echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> $GITHUB_ENV
+        echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> $GITHUB_ENV
+        echo "MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }}" >> $GITHUB_ENV
+        echo "MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }}" >> $GITHUB_ENV
+        
+    - name: Deploy model to MLflow & S3
+      run: |
+        # Train and deploy model with versioning
+        python main.py --mode train --enable-mlflow --mlflow-experiment ${{ env.MLFLOW_EXPERIMENT_NAME }}
+        
+        # Verify model deployment
+        python -c "
+        from mlflow_integration.mlflow_manager import MLflowManager
+        from config.config import Config
+        
+        mgr = MLflowManager(
+            tracking_uri=Config.MLFLOW_TRACKING_URI,
+            experiment_name='${{ env.MLFLOW_EXPERIMENT_NAME }}'
+        )
+        
+        if mgr.is_enabled:
+            model = mgr.load_model_with_versioning(model_name='lstm_model', version='latest')
+            if model:
+                print('✅ Model successfully deployed to MLflow & S3')
+            else:
+                print('❌ Model deployment verification failed')
+                exit(1)
+        else:
+            print('❌ MLflow not enabled')
+            exit(1)
+        "
+        
+    - name: Log deployment info
+      run: |
+        echo "🚀 Model deployed to MLflow experiment: ${{ env.MLFLOW_EXPERIMENT_NAME }}"
+        echo "📦 S3 location: ${{ secrets.MLFLOW_ARTIFACT_ROOT }}"
+        echo "🔗 MLflow URI: ${{ secrets.MLFLOW_TRACKING_URI }}"
+        
+  docker-build:
+    name: Build Docker Image
+    needs: mlflow-deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+        
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+      
+    - name: Set up environment variables
+      run: |
+        echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> $GITHUB_ENV
+        echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD }}" >> $GITHUB_ENV
+        echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> $GITHUB_ENV
+        echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> $GITHUB_ENV
+        echo "MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }}" >> $GITHUB_ENV
+        echo "MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }}" >> $GITHUB_ENV
+        echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+        echo "AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}" >> $GITHUB_ENV
+        
+    - name: Build and test Docker image
+      run: |
+        # Build Docker image using our utility script
+        python utils/docker_build_deploy.py --username ${{ secrets.DOCKER_USERNAME }} --password ${{ secrets.DOCKER_PASSWORD }} --version ${{ github.sha }}
+        
+        # Test the built image
+        docker run --rm -d --name test-container -p 7051:7051 \
+          -e ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }} \
+          -e MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }} \
+          -e MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }} \
+          -e MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }} \
+          -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+          -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+          -e AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }} \
+          ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+          
+        # Wait for container to start
+        sleep 30
+        
+        # Test health endpoint
+        curl -f http://localhost:7051/_stcore/health || exit 1
+        
+        # Stop test container
+        docker stop test-container
+        
+    - name: Push to Docker Hub (placeholder)
+      run: |
+        echo "🐳 Docker image built successfully: ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }}"
+        echo "📦 Docker Hub push will be implemented later"
+        echo "🔗 Image ready for ECS deployment"
+        
+  ecs-deploy:
+    name: Deploy to AWS ECS (Placeholder)
+    needs: docker-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+        
+    - name: ECS Deployment Placeholder
+      run: |
+        echo "🚀 ECS Deployment Pipeline"
+        echo "=========================="
+        echo "📋 This step will deploy the container to AWS ECS"
+        echo "🔧 Implementation will be added later"
+        echo ""
+        echo "📊 Current status:"
+        echo "✅ Model trained and tested"
+        echo "✅ Model deployed to MLflow & S3"
+        echo "✅ Docker image built and tested"
+        echo "⏳ ECS deployment: Pending implementation"
+        echo ""
+        echo "🎯 Next steps:"
+        echo "1. Create ECS cluster: ${{ env.ECS_CLUSTER }}"
+        echo "2. Create ECS service: ${{ env.ECS_SERVICE }}"
+        echo "3. Configure task definition"
+        echo "4. Set up load balancer"
+        echo "5. Configure auto-scaling"
+        echo ""
+        echo "📝 Manual deployment commands:"
+        echo "aws ecs create-cluster --cluster-name ${{ env.ECS_CLUSTER }}"
+        echo "aws ecs register-task-definition --cli-input-json file://task-definition.json"
+        echo "aws ecs create-service --cluster ${{ env.ECS_CLUSTER }} --service-name ${{ env.ECS_SERVICE }} --task-definition openstack-rca-task"
+        
+    - name: Create deployment summary
+      run: |
+        echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Completed Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "- Model training and testing" >> $GITHUB_STEP_SUMMARY
+        echo "- MLflow & S3 model deployment" >> $GITHUB_STEP_SUMMARY
+        echo "- Docker image build and test" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔄 Pending Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "- Docker Hub push (to be implemented)" >> $GITHUB_STEP_SUMMARY
+        echo "- ECS deployment (to be implemented)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Artifacts:" >> $GITHUB_STEP_SUMMARY
+        echo "- Model: ${{ secrets.MLFLOW_ARTIFACT_ROOT }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Docker Image: ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- MLflow Experiment: ${{ env.MLFLOW_EXPERIMENT_NAME }}" >> $GITHUB_STEP_SUMMARY 

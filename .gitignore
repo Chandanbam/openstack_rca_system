@@ -119,6 +119,8 @@ coverage_reports/
 htmlcov/
 .pytest_cache/
 .tox/
+coverage.xml
+.coverage.*
 
 # Documentation Build
 docs/_build/
