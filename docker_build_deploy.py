@@ -185,10 +185,13 @@ class DockerBuilder:
             return self.run_command(login_cmd, "DockerHub login")
     
     def build_image(self):
-        """Build Docker image"""
+        """Build Docker image with optimizations"""
         print(f"\n🏗️ Building Docker image: {self.full_image_name}")
+        print("🎯 Target: production stage")
+        print("⚠️ This may take several minutes for ML dependencies...")
+        print("📊 Progress will be shown in real-time...")
         
-        build_cmd = f"docker build -t {self.full_image_name} -t {self.latest_image_name} ."
+        build_cmd = f"docker build --progress=plain --target=production -t {self.full_image_name} -t {self.latest_image_name} ."
         return self.run_command(build_cmd, "Docker image build")
     
     def push_image(self):
