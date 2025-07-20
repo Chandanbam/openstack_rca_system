@@ -1,12 +1,6 @@
-"""
-MLflow Manager for OpenStack RCA System - Cleaned and Precise
-
-This module provides streamlined MLflow integration with single keras upload and S3 organization.
-"""
-
 import os
-import logging
 import json
+import logging
 from typing import Dict, Any, Optional, Union, List
 from pathlib import Path
 from datetime import datetime
@@ -83,10 +77,10 @@ class MLflowManager:
                 artifact_root = None
                 if hasattr(Config, 'MLFLOW_CONFIG') and Config.MLFLOW_CONFIG.get('artifact_root'):
                     artifact_root = Config.MLFLOW_CONFIG['artifact_root']
-                
+                    
                 try:
                     experiment_id = mlflow.create_experiment(
-                        experiment_name, 
+                        experiment_name,
                         artifact_location=artifact_root
                     )
                     logger.info(f"✅ Created new MLflow experiment: {experiment_name} (ID: {experiment_id})")
@@ -113,7 +107,7 @@ class MLflowManager:
         except Exception as e:
             logger.error(f"Failed to initialize MLflow: {e}")
             self.enable_mlflow = False
-
+    
     def start_run(self, run_name: Optional[str] = None, tags: Optional[Dict[str, str]] = None) -> str:
         """Start MLflow run with meaningful naming"""
         if not self.enable_mlflow:
@@ -124,8 +118,6 @@ class MLflowManager:
             if not run_name:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 run_name = f"{self.experiment_name}_{timestamp}"
-            
-
             
             # Start the run
             run = mlflow.start_run(run_name=run_name, tags=tags)
@@ -140,7 +132,7 @@ class MLflowManager:
         except Exception as e:
             logger.error(f"Failed to start MLflow run: {e}")
             return None
-
+    
     def end_run(self, status: str = "FINISHED"):
         """End MLflow run with S3 summary"""
         if not self.enable_mlflow or not self.active_run:
@@ -153,7 +145,7 @@ class MLflowManager:
             
         except Exception as e:
             logger.error(f"Failed to end MLflow run: {e}")
-
+    
     def log_params(self, params: Dict[str, Any]):
         """Log parameters to MLflow"""
         if not self.enable_mlflow or not self.active_run:
@@ -175,7 +167,7 @@ class MLflowManager:
             
         except Exception as e:
             logger.error(f"Failed to log parameters: {e}")
-
+    
     def log_metrics(self, metrics: Dict[str, Union[float, int]], step: Optional[int] = None):
         """Log metrics to MLflow"""
         if not self.enable_mlflow or not self.active_run:
@@ -195,15 +187,15 @@ class MLflowManager:
             
         except Exception as e:
             logger.error(f"Failed to log metrics: {e}")
-
+    
     def log_model_with_versioning(self, 
-                                  model: Any, 
-                                  model_name: str = "lstm_model",
-                                  model_type: str = "tensorflow",
-                                  model_stage: str = "prod",
-                                  artifacts: Optional[Dict[str, str]] = None,
-                                  signature=None,
-                                  input_example=None) -> Optional[str]:
+                  model: Any, 
+                  model_name: str = "lstm_model",
+                  model_type: str = "tensorflow",
+                  model_stage: str = "prod",
+                  artifacts: Optional[Dict[str, str]] = None,
+                  signature=None,
+                  input_example=None) -> Optional[str]:
         """
         Log model ONCE in keras format with S3 organization
         """
@@ -234,7 +226,7 @@ class MLflowManager:
             import boto3
             from botocore.exceptions import ClientError
             
-            # Use meaningful run name instead of random run ID
+            # Use meaningful run name based on experiment name instead of random run ID
             run_name = f"openstack-rca-system-prod_{next_version:04d}"
             meaningful_s3_key = f"group6-capstone/{run_name}/models/{keras_filename}"
             
@@ -305,11 +297,11 @@ class MLflowManager:
         except Exception as e:
             logger.error(f"Failed to log model: {e}")
             return None
-
-    def load_model_with_versioning(self,
-                                   model_name: str = "lstm_model", 
-                                   version: Union[str, int] = "latest",
-                                   stage: Optional[str] = None) -> Optional[Any]:
+    
+    def load_model_with_versioning(self, 
+                   model_name: str = "lstm_model", 
+                   version: Union[str, int] = "latest",
+                   stage: Optional[str] = None) -> Optional[Any]:
         """Load model from meaningful S3 folder names by version"""
         if not self.enable_mlflow:
             return None
@@ -322,7 +314,7 @@ class MLflowManager:
         except Exception as e:
             logger.error(f"Failed to load model from meaningful folders: {e}")
             return None
-
+    
     def _load_latest_model_from_meaningful_folders(self):
         """Load the latest model from meaningful S3 folder names"""
         try:
@@ -347,10 +339,10 @@ class MLflowManager:
             s3_prefix = s3_parts[1] if len(s3_parts) > 1 else ''
             
             logger.info(f"🔍 Searching for latest model in S3 bucket: {bucket_name}")
-            
+                        
             # Initialize S3 client
             s3_client = boto3.client('s3')
-            
+                        
             # List all folders matching the meaningful pattern
             prefix_pattern = f"{s3_prefix}/openstack-rca-system-prod_" if s3_prefix else "openstack-rca-system-prod_"
             
@@ -440,21 +432,21 @@ class MLflowManager:
                 except:
                     pass
                 return None
-                
+            
         except Exception as e:
             logger.error(f"❌ Meaningful folder model download failed: {e}")
             return None
-
+    
     @property
     def is_enabled(self) -> bool:
         """Check if MLflow is enabled"""
         return self.enable_mlflow
-
+    
     @property
     def tracking_uri(self) -> Optional[str]:
         """Get current tracking URI"""
         return mlflow.get_tracking_uri() if self.enable_mlflow else None
-
+    
     def get_run_info(self) -> Optional[Dict[str, Any]]:
         """Get information about the current run"""
         if not self.enable_mlflow or not self.active_run:
@@ -471,4 +463,4 @@ class MLflowManager:
             return run_info
         except Exception as e:
             logger.error(f"Failed to get run info: {e}")
-            return None 
+            return None

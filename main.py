@@ -369,34 +369,36 @@ def train_model_pipeline(clean_vector_db: bool = False, mlflow_manager=None):
             }
             mlflow_manager.log_metrics(training_metrics)
             
-            # Log the trained model
+            # Log the trained model with versioning
             try:
-                model_artifacts = {
-                    'model_path': model_path,
-                    'config_file': 'config/config.py'
-                }
+                # Upload model with versioning to MLflow/S3
                 model_version = mlflow_manager.log_model_with_versioning(
-                    lstm_classifier.model,
+                    model=lstm_classifier.model,
                     model_name="lstm_model",
                     model_type="tensorflow",
-                    model_stage="Staging",
-                    artifacts=model_artifacts
+                    model_stage="Production",  # Use production for academic setting
+                    artifacts={
+                        'model_path': model_path,
+                        'config_file': 'config/config.py'
+                    }
                 )
                 
                 if model_version:
-                    logger.info(f"📊 Model v{model_version} logged to MLflow and S3 successfully")
+                    logger.info(f"📊 Model v{model_version} uploaded to MLflow and S3 successfully")
+                    logger.info(f"🗃️ Original model path: {model_path}")
                     
-                    # Log model registry information
-                    registry_info = mlflow_manager.get_model_registry_info()
-                    if registry_info:
-                        logger.info(f"🗃️ Model Registry Status:")
-                        for model_name, model_info in registry_info['models'].items():
-                            logger.info(f"   - {model_name}: {model_info['total_versions']} versions, latest: v{model_info['latest_version']}")
+                    # Get run info to show S3 location
+                    run_info = mlflow_manager.get_run_info()
+                    if run_info:
+                        if run_info.get('artifact_uri'):
+                            logger.info(f"🌟 S3 location: {run_info['artifact_uri']}/models/")
+                        logger.info(f"🔢 Model version: v{model_version}")
                 else:
-                    logger.warning("⚠️ Model logging to MLflow failed")
+                    logger.warning("⚠️ Model upload to MLflow/S3 failed - model saved locally only")
                     
-            except Exception as e:
-                logger.warning(f"Failed to log model to MLflow: {e}")
+            except Exception as model_error:
+                logger.error(f"❌ Model logging failed: {model_error}")
+                logger.info("📝 Model saved locally only")
         else:
             logger.info("📝 No MLflow manager - model saved locally only")
         
@@ -446,7 +448,7 @@ def train_model_pipeline(clean_vector_db: bool = False, mlflow_manager=None):
         
         return None
 
-def run_rca_analysis(issue_description: str, log_files_path: str = None, fast_mode: bool = False, enable_mlflow: bool = False, mlflow_uri: str = None, experiment_name: str = 'openstack_rca_system_staging'):
+def run_rca_analysis(issue_description: str, log_files_path: str = None, fast_mode: bool = False, enable_mlflow: bool = False, mlflow_uri: str = None, experiment_name: str = 'openstack_rca_system_production'):
     """Run RCA analysis on a specific issue using Hybrid RCA Analyzer with optional MLflow model loading"""
     logger.info("Starting hybrid RCA analysis...")
     
@@ -462,8 +464,7 @@ def run_rca_analysis(issue_description: str, log_files_path: str = None, fast_mo
             from mlflow_integration.mlflow_manager import MLflowManager
             mlflow_manager = MLflowManager(
                 tracking_uri=mlflow_uri,
-                experiment_name=experiment_name,
-                enable_mlflow=True
+                experiment_name=experiment_name
             )
             
             if mlflow_manager.is_enabled:
@@ -516,7 +517,7 @@ def run_rca_analysis(issue_description: str, log_files_path: str = None, fast_mo
             logger.error(f"❌ FALLBACK: MLflow model loading failed - {str(e)}")
             logger.error("❌ Will attempt to load from local file or train new model")
             model_metadata_for_inference = {'model_source': 'failed', 'error': str(e)}
-            
+    
     # Final fallback to local model if MLflow failed
         if lstm_model is None:
             model_path = os.path.join('data/model', 'lstm_log_classifier.keras')
@@ -910,7 +911,7 @@ def main():
                        help='Disable MLflow experiment tracking and model logging')
     parser.add_argument('--mlflow-uri', type=str,
                        help='MLflow tracking URI (overrides config/env settings)')
-    parser.add_argument('--mlflow-experiment', type=str, default='openstack_rca_system_staging',
+    parser.add_argument('--mlflow-experiment', type=str, default='openstack_rca_system_production',
                        help='MLflow experiment name')
     
     args = parser.parse_args()
@@ -1040,9 +1041,9 @@ def main():
                 mlflow_uri = None
         
         # Auto-generate experiment name with versioning
-        if args.mlflow_experiment == 'openstack_rca_system_staging':  # Default value
+        if args.mlflow_experiment == 'openstack_rca_system_production':  # Default value
             # Use auto-versioned experiment name from config
-            experiment_name = Config.MLFLOW_CONFIG.get('experiment_name', 'openstack_rca_system_staging')
+            experiment_name = Config.MLFLOW_CONFIG.get('experiment_name', 'openstack_rca_system_production')
             logger.info(f"🎯 Using auto-configured experiment: {experiment_name}")
         else:
             # Use user-provided experiment name
@@ -1056,8 +1057,7 @@ def main():
                 from mlflow_integration.mlflow_manager import MLflowManager
                 mlflow_manager = MLflowManager(
                     tracking_uri=mlflow_uri,
-                    experiment_name=experiment_name,
-                    enable_mlflow=True
+                    experiment_name=experiment_name
                 )
                 
                 if mlflow_manager.is_enabled:
@@ -1079,8 +1079,7 @@ def main():
                 try:
                     mlflow_manager = MLflowManager(
                         tracking_uri=mlflow_uri,
-                        experiment_name=experiment_name,
-                        enable_mlflow=False  # Disable MLflow but keep S3 functionality
+                        experiment_name=experiment_name
                     )
                     logger.info("🔧 Created minimal MLflow manager for S3 operations")
                 except:
@@ -1151,14 +1150,14 @@ def main():
                 mlflow_uri = None
         
         # Auto-generate experiment name with versioning
-        if args.mlflow_experiment == 'openstack_rca_system_staging':  # Default value
+        if args.mlflow_experiment == 'openstack_rca_system_production':  # Default value
             # Use auto-versioned experiment name from config
             try:
                 from config.config import Config
-                experiment_name = Config.MLFLOW_CONFIG.get('experiment_name', 'openstack_rca_system_staging')
+                experiment_name = Config.MLFLOW_CONFIG.get('experiment_name', 'openstack_rca_system_production')
                 logger.info(f"🎯 Using auto-configured experiment: {experiment_name}")
             except:
-                experiment_name = 'openstack_rca_system_staging'
+                experiment_name = 'openstack_rca_system_production'
                 logger.info(f"🎯 Using default experiment: {experiment_name}")
         else:
             # Use user-provided experiment name

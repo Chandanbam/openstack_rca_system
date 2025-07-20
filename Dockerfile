@@ -33,17 +33,19 @@ RUN pip install --no-cache-dir \
 # Copy application code selectively
 COPY main.py .
 COPY config/ config/
+COPY data/ data/
 COPY lstm/ lstm/
+COPY models/ models/
+COPY logs/ logs/
 COPY services/ services/
 COPY streamlit_app/ streamlit_app/
 COPY utils/ utils/
 COPY monitoring/ monitoring/
+COPY mlflow_integration/ mlflow_integration/
 
-# Create directories for volumes
+# Create directories for volumes (only for additional directories)
 RUN mkdir -p /app/data/vector_db \
     && mkdir -p /app/data/cache \
-    && mkdir -p /app/models \
-    && mkdir -p /app/logs \
     && mkdir -p /app/temp
 
 # Set environment variables
@@ -66,7 +68,16 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 FROM base AS production
 
 # Create a non-root user for security
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN groupadd -r appuser && useradd -r -g appuser appuser \
+    && mkdir -p /home/appuser \
+    && chown -R appuser:appuser /home/appuser
+
+# Set NLTK data directory to avoid permission issues
+ENV NLTK_DATA=/app/nltk_data
+RUN mkdir -p /app/nltk_data && chown -R appuser:appuser /app/nltk_data
+
+# Pre-download NLTK data as root to avoid runtime permission issues
+RUN python -c "import nltk; nltk.download('punkt', download_dir='/app/nltk_data'); nltk.download('stopwords', download_dir='/app/nltk_data'); nltk.download('wordnet', download_dir='/app/nltk_data')"
 
 # Create startup script with proper error handling
 COPY <<EOF /app/start.sh
@@ -86,9 +97,28 @@ if [ ! -f "/app/models/lstm_log_classifier.keras" ] && [ -n "\$MLFLOW_ENABLED" ]
     echo "📥 Attempting to download model from MLflow/S3..."
     python -c "
 try:
-    from utils.mlflow_model_manager import MLflowModelManager
-    MLflowModelManager().download_latest_model()
-    print('✅ Model downloaded successfully')
+    from mlflow_integration.mlflow_manager import MLflowManager
+    from config.config import Config
+    
+    # Use the environment's experiment name
+    import os
+    experiment_name = os.getenv('MLFLOW_EXPERIMENT_NAME', Config.MLFLOW_CONFIG.get('experiment_name', 'openstack_rca_system_production'))
+    
+    mgr = MLflowManager(
+        tracking_uri=Config.MLFLOW_TRACKING_URI,
+        experiment_name=experiment_name,
+        enable_mlflow=True
+    )
+    
+    if mgr.is_enabled:
+        model = mgr.load_model_with_versioning(model_name='lstm_model', version='latest')
+        if model:
+            print(f'✅ Model downloaded successfully from experiment: {experiment_name}')
+        else:
+            print(f'⚠️ No model found for experiment: {experiment_name}')
+    else:
+        print('⚠️ MLflow not enabled')
+        
 except Exception as e:
     print(f'⚠️ Model download failed: {e}')
     print('Will use local fallback if available')

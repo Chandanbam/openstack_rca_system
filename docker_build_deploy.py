@@ -19,7 +19,6 @@ class DockerBuilder:
         self.version_tag = version_tag or self.generate_version_tag()
         self.image_name = f"{self.docker_username}/{self.docker_repo}"
         self.full_image_name = f"{self.image_name}:{self.version_tag}"
-        self.latest_image_name = f"{self.image_name}:latest"
         
     def generate_version_tag(self):
         """Generate version tag based on timestamp"""
@@ -187,23 +186,29 @@ class DockerBuilder:
     def build_image(self):
         """Build Docker image with optimizations"""
         print(f"\n🏗️ Building Docker image: {self.full_image_name}")
+        print(f"🏷️ Also tagging as: {self.docker_username}/{self.docker_repo}:latest")
         print("🎯 Target: production stage")
         print("⚠️ This may take several minutes for ML dependencies...")
         print("📊 Progress will be shown in real-time...")
         
-        build_cmd = f"docker build --progress=plain --target=production -t {self.full_image_name} -t {self.latest_image_name} ."
+        # Create image with both versioned tag and latest tag
+        latest_tag = f"{self.docker_username}/{self.docker_repo}:latest"
+        build_cmd = f"docker build --progress=plain --target=production -t {self.full_image_name} -t {latest_tag} ."
         return self.run_command(build_cmd, "Docker image build")
     
     def push_image(self):
         """Push Docker image to DockerHub"""
-        print(f"\n📤 Pushing Docker image to DockerHub...")
+        print(f"\n📤 Pushing Docker images to DockerHub...")
         
         # Push versioned tag
+        print(f"📤 Pushing versioned tag: {self.full_image_name}")
         if not self.run_command(f"docker push {self.full_image_name}", "Push versioned image"):
             return False
-            
+        
         # Push latest tag
-        if not self.run_command(f"docker push {self.latest_image_name}", "Push latest image"):
+        latest_tag = f"{self.docker_username}/{self.docker_repo}:latest"
+        print(f"📤 Pushing latest tag: {latest_tag}")
+        if not self.run_command(f"docker push {latest_tag}", "Push latest image"):
             return False
             
         return True
@@ -224,7 +229,6 @@ class DockerBuilder:
         """Save build information to config"""
         build_info = {
             "docker_image": self.full_image_name,
-            "docker_image_latest": self.latest_image_name,
             "docker_username": self.docker_username,
             "docker_repo": self.docker_repo,
             "version_tag": self.version_tag,

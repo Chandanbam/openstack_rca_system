@@ -62,7 +62,7 @@ class OpenStackRCAAssistant:
                 
                 # Get MLflow configuration
                 mlflow_uri = getattr(Config, 'MLFLOW_TRACKING_URI', None)
-                experiment_name = Config.MLFLOW_CONFIG.get('experiment_name', 'openstack_rca_system_staging')
+                experiment_name = Config.MLFLOW_CONFIG.get('experiment_name', 'openstack_rca_system_production')
                 
                 st.session_state.mlflow_manager = MLflowManager(
                     tracking_uri=mlflow_uri,

@@ -26,9 +26,6 @@ Thumbs.db
 # Local data (will be mounted as volumes)
 data/vector_db/
 data/cache/
-models/*.keras
-models/*.pkl
-logs/
 temp/
 mlruns/
 

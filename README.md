@@ -5,7 +5,7 @@ An intelligent log analysis system that automatically identifies and analyzes is
 ## 🚀 Key Features
 
 - **🤖 LSTM-based Log Analysis**: Deep learning model for pattern recognition in OpenStack logs
-- **🧠 Claude AI Integration**: Advanced natural language analysis for detailed RCA reports  
+- **🧠 Claude AI Integration**: Advanced natural language analysis for detailed RCA reports
 - **📊 Interactive Dashboard**: Streamlit-based web interface for easy log analysis
 - **⚡ Hybrid RCA Engine**: LSTM importance filtering + Vector DB semantic search + TF-IDF
 - **🎯 Dual Analysis Modes**: Full mode (hybrid) and Fast mode (LSTM + TF-IDF only)
@@ -60,8 +60,8 @@ cd openstack_rca_system
 
 # Setup environment (see docs/ENVIRONMENT_SETUP.md for details)
 source setup_env.sh
-source venv/bin/activate
-```
+   source venv/bin/activate
+   ```
 
 ### 2. Train LSTM Model
 ```bash
