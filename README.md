@@ -61,9 +61,9 @@ cd openstack_rca_system
 # Setup environment (see docs/ENVIRONMENT_SETUP.md for details)
 source .envrc  # Load environment variables
 python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
 
 ### 2. Train LSTM Model
 ```bash

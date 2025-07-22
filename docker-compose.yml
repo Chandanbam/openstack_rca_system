@@ -1,44 +1,51 @@
-version: '3.8'
+# IMPORTANT: Load environment variables before running docker-compose
+# Run: source .envrc && docker-compose up
+# Or: direnv allow && docker-compose up (if using direnv)
 
 services:
   openstack-rca-system:
-    image: chandanbam/openstack-rca-system:latest
+    image: chandantech/openstack-rca-system:latest
     container_name: openstack-rca-system
     ports:
-      - "7051:7051"
+      - "8501:8501"  # Match Dockerfile configuration
     volumes:
-      # Vector database data
-      - ./data/vector_db:/app/data/vector_db
-      # Cache data
+      # Cache data (keep this for runtime cache)
       - ./data/cache:/app/data/cache
-      # LSTM models
-      - ./models:/app/models
-      # Log files
-      - ./logs:/app/logs
       # Temporary files for S3 downloads
       - ./temp:/app/temp
+      # Note: models, logs, and vector_db are now copied into the image
     environment:
-      # MLflow configuration (optional)
-      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-}
-      - MLFLOW_ARTIFACT_ROOT=${MLFLOW_ARTIFACT_ROOT:-}
-      - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL:-}
-      - MLFLOW_ENABLED=${MLFLOW_ENABLED:-false}
+      # MLflow configuration
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+      - MLFLOW_ARTIFACT_ROOT=${MLFLOW_ARTIFACT_ROOT}
+      - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL}
+      - MLFLOW_ENABLED=${MLFLOW_ENABLED:-true}
+      - MLFLOW_EXPERIMENT_NAME=openstack_rca_system_production
       
-      # AWS credentials for S3 model storage (optional)
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
-      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-}
+      # AWS credentials for S3 model storage
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
       
-      # Anthropic API key for RCA analysis
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # API Keys
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       
       # Container configuration
       - PYTHONPATH=/app
-      - STREAMLIT_SERVER_PORT=7051
+      - STREAMLIT_SERVER_PORT=8501
       - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - CONTAINER_PORT=${CONTAINER_PORT:-8501}
+      - DEBUG=${DEBUG:-false}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      
+      # Docker configuration
+      - DOCKER_USERNAME=${DOCKER_USERNAME}
+      - DOCKER_PASSWORD=${DOCKER_PASSWORD}
+      - DOCKER_REGISTRY=${DOCKER_REGISTRY}
+      - DOCKER_REPOSITORY=${DOCKER_REPOSITORY}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7051/_stcore/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -52,4 +59,13 @@ services:
           cpus: '2.0'
         reservations:
           memory: 2G
-          cpus: '1.0' 
+          cpus: '1.0'
+    
+    # Network configuration
+    networks:
+      - openstack-rca-network
+
+# Define custom network
+networks:
+  openstack-rca-network:
+    driver: bridge 

@@ -19,8 +19,8 @@ try:
     except ImportError:
         pass
         
-except ImportError:
-    MLFLOW_AVAILABLE = False
+    except ImportError:
+        MLFLOW_AVAILABLE = False
     TENSORFLOW_AVAILABLE = False
 
 from config.config import Config
@@ -68,14 +68,14 @@ class MLflowManager:
                         os.environ['MLFLOW_S3_ENDPOINT_URL'] = mlflow_config['s3_endpoint_url']
                     logger.info("AWS credentials configured for S3 artifact storage")
             
-            self.client = MlflowClient()
+                self.client = MlflowClient()
             
             # Set or create experiment
-            experiment = mlflow.get_experiment_by_name(experiment_name)
-            if experiment is None:
+                experiment = mlflow.get_experiment_by_name(experiment_name)
+                if experiment is None:
                 logger.info(f"Creating new MLflow experiment: {experiment_name}")
                 artifact_root = None
-                if hasattr(Config, 'MLFLOW_CONFIG') and Config.MLFLOW_CONFIG.get('artifact_root'):
+                    if hasattr(Config, 'MLFLOW_CONFIG') and Config.MLFLOW_CONFIG.get('artifact_root'):
                     artifact_root = Config.MLFLOW_CONFIG['artifact_root']
                     
                 try:
@@ -100,7 +100,7 @@ class MLflowManager:
                     except Exception as set_error:
                         logger.error(f"❌ Failed to set experiment: {set_error}")
                         raise create_error
-            else:
+                else:
                 mlflow.set_experiment(experiment_name)
                 logger.info(f"✅ Using existing MLflow experiment: {experiment_name} (ID: {experiment.experiment_id})")
                 
@@ -193,9 +193,9 @@ class MLflowManager:
                   model_name: str = "lstm_model",
                   model_type: str = "tensorflow",
                   model_stage: str = "prod",
-                  artifacts: Optional[Dict[str, str]] = None,
-                  signature=None,
-                  input_example=None) -> Optional[str]:
+                                  artifacts: Optional[Dict[str, str]] = None,
+                                  signature=None,
+                                  input_example=None) -> Optional[str]:
         """
         Log model ONCE in keras format with S3 organization
         """
@@ -272,8 +272,8 @@ class MLflowManager:
                     # Clean up temp file
                     os.remove(keras_path)
                     os.rmdir(temp_dir)
-                    
-                    return model_version
+            
+            return model_version
                     
                 except Exception as reg_error:
                     logger.error(f"❌ Model registration failed: {reg_error}")
@@ -328,7 +328,7 @@ class MLflowManager:
                 logger.error("❌ No S3 configuration found")
                 return None
                 
-            base_artifact_uri = Config.MLFLOW_CONFIG['artifact_root']
+                base_artifact_uri = Config.MLFLOW_CONFIG['artifact_root']
             if not base_artifact_uri or not base_artifact_uri.startswith('s3://'):
                 logger.error("❌ Not using S3 artifact storage")
                 return None
@@ -340,14 +340,14 @@ class MLflowManager:
             
             logger.info(f"🔍 Searching for latest model in S3 bucket: {bucket_name}")
                         
-            # Initialize S3 client
-            s3_client = boto3.client('s3')
+                        # Initialize S3 client
+                        s3_client = boto3.client('s3')
                         
             # List all folders matching the meaningful pattern
             prefix_pattern = f"{s3_prefix}/openstack-rca-system-prod_" if s3_prefix else "openstack-rca-system-prod_"
             
-            response = s3_client.list_objects_v2(
-                Bucket=bucket_name,
+                                response = s3_client.list_objects_v2(
+                                    Bucket=bucket_name,
                 Prefix=prefix_pattern.strip('/'),
                 Delimiter='/'
             )
@@ -464,3 +464,4 @@ class MLflowManager:
         except Exception as e:
             logger.error(f"Failed to get run info: {e}")
             return None
+    
