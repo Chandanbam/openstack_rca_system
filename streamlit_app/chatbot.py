@@ -146,8 +146,36 @@ class OpenStackRCAAssistant:
         except Exception as e:
             st.warning(f"⚠️ Local model loading failed: {e}")
         
-        # No model available
+        # No local model available - try to download from MLflow
+        if st.session_state.mlflow_manager:
+            try:
+                st.info("📥 **No local model found - Attempting to download from MLflow/S3...**")
+                
+                # Try to download the latest model from MLflow
+                model_result = st.session_state.mlflow_manager._load_latest_model_from_meaningful_folders()
+                
+                if model_result is not None:
+                    st.success("✅ **LSTM Model downloaded from MLflow/S3**")
+                    
+                    # Wrap the MLflow model in our classifier
+                    lstm_model = LSTMLogClassifier(Config.LSTM_CONFIG)
+                    lstm_model.model = model_result
+                    
+                    st.session_state.lstm_model = lstm_model
+                    st.session_state.model_source = "mlflow_s3_downloaded"
+                    
+                    st.info("🎯 Model downloaded and ready for use")
+                    return
+                    
+            except Exception as e:
+                st.warning(f"⚠️ MLflow model download failed: {e}")
+        
+        # No model available at all
         st.error("❌ **No LSTM model available** - Please train a model first")
+        st.info("💡 **Solutions:**")
+        st.info("1. Train a new model using the 'Model Training' tab")
+        st.info("2. Ensure MLflow/S3 is properly configured")
+        st.info("3. Check that models exist in your MLflow experiment")
         st.session_state.model_source = "none"
     
     def _render_model_info_sidebar(self):

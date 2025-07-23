@@ -471,7 +471,7 @@ jobs:
     name: Deploy to ECS/EC2 Infrastructure
     needs: docker-build-push
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy'
     
     env:
       ECS_CLUSTER: openstack-rca-cluster

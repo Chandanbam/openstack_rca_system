@@ -61,7 +61,7 @@ Code Commit → Train & MLflow → Test RCA & RAG → Docker Build & Push → EC
 - Pushed image to Docker Hub
 
 ### **Stage 4: ECS/EC2 Deployment** ☁️
-**Trigger**: After successful Stage 3
+**Trigger**: After successful Stage 3 (runs on `main` and `deploy` branches)
 
 **Actions**:
 - ✅ AWS ECS cluster creation with EC2 launch type
