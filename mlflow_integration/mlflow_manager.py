@@ -73,6 +73,20 @@ class MLflowManager:
             
             # Set or create experiment
             experiment = mlflow.get_experiment_by_name(experiment_name)
+            
+            # Handle deleted experiments
+            if experiment is not None and experiment.lifecycle_stage == "deleted":
+                logger.warning(f"Experiment '{experiment_name}' was deleted. Attempting to restore...")
+                try:
+                    # Try to restore the deleted experiment
+                    self.client.restore_experiment(experiment.experiment_id)
+                    logger.info(f"✅ Restored deleted experiment: {experiment_name}")
+                    experiment = mlflow.get_experiment_by_name(experiment_name)
+                except Exception as restore_error:
+                    logger.warning(f"Could not restore experiment: {restore_error}")
+                    # If restore fails, we'll create a new one
+                    experiment = None
+            
             if experiment is None:
                 logger.info(f"Creating new MLflow experiment: {experiment_name}")
                 artifact_root = None
@@ -102,8 +116,23 @@ class MLflowManager:
                         logger.error(f"❌ Failed to set experiment: {set_error}")
                         raise create_error
             else:
-                mlflow.set_experiment(experiment_name)
-                logger.info(f"✅ Using existing MLflow experiment: {experiment_name} (ID: {experiment.experiment_id})")
+                try:
+                    mlflow.set_experiment(experiment_name)
+                    logger.info(f"✅ Using existing MLflow experiment: {experiment_name} (ID: {experiment.experiment_id})")
+                except Exception as set_error:
+                    logger.error(f"❌ Failed to set experiment: {set_error}")
+                    # If setting fails, try to create a new one
+                    logger.info(f"Attempting to create new experiment: {experiment_name}")
+                    artifact_root = None
+                    if hasattr(Config, 'MLFLOW_CONFIG') and Config.MLFLOW_CONFIG.get('artifact_root'):
+                        artifact_root = Config.MLFLOW_CONFIG['artifact_root']
+                    
+                    experiment_id = mlflow.create_experiment(
+                        experiment_name,
+                        artifact_location=artifact_root
+                    )
+                    logger.info(f"✅ Created new MLflow experiment: {experiment_name} (ID: {experiment_id})")
+                    mlflow.set_experiment(experiment_name)
                 
         except Exception as e:
             logger.error(f"Failed to initialize MLflow: {e}")

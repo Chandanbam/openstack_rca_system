@@ -64,6 +64,25 @@ jobs:
         echo "TF_CPP_MIN_LOG_LEVEL=2" >> $GITHUB_ENV
         echo "TF_USE_LEGACY_KERAS=1" >> $GITHUB_ENV
         
+    - name: Setup MLflow experiment
+      run: |
+        echo "🔧 Setting up MLflow experiment: ${{ env.MLFLOW_EXPERIMENT_NAME }}"
+        python -c "
+        from mlflow_integration.mlflow_manager import MLflowManager
+        from config.config import Config
+        
+        # Initialize MLflow manager to ensure experiment is created/restored
+        mgr = MLflowManager(
+            tracking_uri=Config.MLFLOW_TRACKING_URI,
+            experiment_name='${{ env.MLFLOW_EXPERIMENT_NAME }}'
+        )
+        
+        if mgr.is_enabled:
+            print(f'✅ MLflow experiment setup complete: ${{ env.MLFLOW_EXPERIMENT_NAME }}')
+        else:
+            print('⚠️ MLflow not enabled, will proceed with local training')
+        "
+        
     - name: Train model and deploy to MLflow/S3
       run: |
         # Train the model and deploy to MLflow/S3
