@@ -435,7 +435,7 @@ class TestRCAEvaluation:
             
             # Initialize RCA analyzer
             rca_analyzer = RCAAnalyzer(
-                api_key='test-key-mock',
+                anthropic_api_key='test-key-mock',
                 lstm_model=None  # Will use mock for testing
             )
             

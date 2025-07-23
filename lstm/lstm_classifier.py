@@ -2,9 +2,9 @@ import numpy as np
 import pandas as pd
 from typing import Tuple, Optional, Dict
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
-from tensorflow.keras.metrics import Precision, Recall, BinaryAccuracy
+import tf_keras as keras
+from tf_keras import layers
+from tf_keras.metrics import Precision, Recall, BinaryAccuracy
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix
 import joblib

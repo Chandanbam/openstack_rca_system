@@ -97,7 +97,7 @@ jobs:
         # Disable CUDA/GPU for CI/CD
         echo "CUDA_VISIBLE_DEVICES=-1" >> $GITHUB_ENV
         echo "TF_CPP_MIN_LOG_LEVEL=2" >> $GITHUB_ENV
-        echo "TF_USE_LEGACY_KERAS=False" >> $GITHUB_ENV
+        echo "TF_USE_LEGACY_KERAS=True" >> $GITHUB_ENV
         
     - name: Train model first
       run: |
@@ -179,7 +179,7 @@ jobs:
         # Disable CUDA/GPU for CI/CD
         echo "CUDA_VISIBLE_DEVICES=-1" >> $GITHUB_ENV
         echo "TF_CPP_MIN_LOG_LEVEL=2" >> $GITHUB_ENV
-        echo "TF_USE_LEGACY_KERAS=False" >> $GITHUB_ENV
+        echo "TF_USE_LEGACY_KERAS=True" >> $GITHUB_ENV
         
     - name: Deploy model to MLflow & S3
       run: |
