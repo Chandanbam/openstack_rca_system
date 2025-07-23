@@ -18,12 +18,21 @@ from pathlib import Path
 from datetime import datetime
 
 def load_env_file():
-    """Load ANTHROPIC_API_KEY from .env file"""
+    """Load ANTHROPIC_API_KEY from environment or .env file"""
+    # First, check if API key is already in environment variables
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if api_key:
+        print("✅ Found ANTHROPIC_API_KEY in environment variables")
+        return api_key
+    
+    # Fall back to .env file
     env_file = Path('.env')
     
     if not env_file.exists():
-        print("❌ Error: .env file not found")
-        print("Create a .env file with: ANTHROPIC_API_KEY=your_key_here")
+        print("❌ Error: .env file not found and ANTHROPIC_API_KEY not in environment")
+        print("Either:")
+        print("1. Set ANTHROPIC_API_KEY environment variable, or")
+        print("2. Create a .env file with: ANTHROPIC_API_KEY=your_key_here")
         sys.exit(1)
     
     try:
@@ -42,6 +51,7 @@ def load_env_file():
                         print("❌ Error: ANTHROPIC_API_KEY is empty in .env file")
                         sys.exit(1)
                     
+                    print("✅ Loaded ANTHROPIC_API_KEY from .env file")
                     return api_key
         
         print("❌ Error: ANTHROPIC_API_KEY not found in .env file")
@@ -56,7 +66,6 @@ def run_tests(output_dir, verbose=False):
     """Run the RAG evaluation tests"""
     # Load API key from .env
     api_key = load_env_file()
-    print("✅ Loaded API key from .env file")
     
     # Set up environment
     env = os.environ.copy()

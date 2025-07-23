@@ -486,11 +486,11 @@ class TestRealRCAEvaluation:
             if not successful_results:
                 print(f"⚠️ No successful results for {mode} mode")
                 continue
-            
-            # Prepare data for metric calculation
-            ranked_predictions = []
-            ground_truths = []
-            predictions = []
+                
+                # Prepare data for metric calculation
+                ranked_predictions = []
+                ground_truths = []
+                predictions = []
             category_matches = 0
             
             print(f"\n🔍 Analyzing {mode} mode results:")
@@ -509,33 +509,33 @@ class TestRealRCAEvaluation:
                 # Extract key findings from response for ranking
                 sentences = [s.strip() for s in rca_response.split('.') if s.strip() and len(s) > 10]
                 ranked_predictions.append(sentences[:5])  # Top 5 findings
-                ground_truths.append(expected)
+                        ground_truths.append(expected)
                 predictions.append(rca_response)
                 
                 # Check category accuracy
                 if predicted_cat == expected_cat:
                     category_matches += 1
-            
-            # Calculate metrics
-            if ranked_predictions and ground_truths:
-                mrr = RCAEvaluationMetrics.calculate_mrr(ranked_predictions, ground_truths)
-                accuracy = RCAEvaluationMetrics.calculate_root_cause_accuracy(predictions, ground_truths)
+                
+                # Calculate metrics
+                if ranked_predictions and ground_truths:
+                    mrr = RCAEvaluationMetrics.calculate_mrr(ranked_predictions, ground_truths)
+                    accuracy = RCAEvaluationMetrics.calculate_root_cause_accuracy(predictions, ground_truths)
                 category_accuracy = category_matches / len(successful_results)
                 
                 print(f"\n📈 {mode.upper()} MODE METRICS:")
                 print(f"    Mean Reciprocal Rank: {mrr:.4f}")
                 print(f"    Root Cause Accuracy:  {accuracy:.4f}")
                 print(f"    Category Accuracy:    {category_accuracy:.4f}")
-                
-                metrics_report['metrics'][f'{mode}_mode'] = {
-                    'mean_reciprocal_rank': round(mrr, 4),
-                    'root_cause_accuracy': round(accuracy, 4),
+                    
+                    metrics_report['metrics'][f'{mode}_mode'] = {
+                        'mean_reciprocal_rank': round(mrr, 4),
+                        'root_cause_accuracy': round(accuracy, 4),
                     'category_accuracy': round(category_accuracy, 4),
                     'scenarios_completed': len(successful_results),
                     'scenarios_failed': len([r for r in results if not r['success']]),
                     'avg_analysis_time': round(np.mean([r['analysis_time'] for r in successful_results]), 2),
                     'avg_relevant_logs': round(np.mean([r['relevant_logs_count'] for r in successful_results]), 1)
-                }
+                    }
         
         # Calculate overall metrics
         if 'fast_mode' in metrics_report['metrics'] and 'hybrid_mode' in metrics_report['metrics']:
