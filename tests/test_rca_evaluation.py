@@ -271,7 +271,7 @@ class TestRealRCAEvaluation:
             from lstm.rca_analyzer import RCAAnalyzer
             from config.config import Config
             print("✅ Successfully imported RCA system components")
-            return True
+            # Test passes if no exception is raised
         except ImportError as e:
             pytest.fail(f"Failed to import RCA system components: {e}")
     
@@ -613,7 +613,7 @@ class TestRealRCAEvaluation:
         
         print(f"✅ Evaluation report verified: {len(report_content['metrics'])} metric categories")
         
-        return metrics_report
+        # Test passes if all assertions above pass
     
     def _print_evaluation_results(self, report: Dict):
         """Print comprehensive evaluation results"""

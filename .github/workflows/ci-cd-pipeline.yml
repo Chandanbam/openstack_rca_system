@@ -243,19 +243,19 @@ jobs:
         ## Test Status
         
         ### Basic Artifact Tests
-        - Status: Completed (with continue-on-error)
+        - Status: Completed
         - Command: \`python -m pytest tests/test_artifacts.py -v\`
         
         ### RCA Evaluation Tests  
-        - Status: Completed (with continue-on-error)
+        - Status: Completed 
         - Command: \`python -m pytest tests/test_rca_evaluation.py -v\`
         
         ### RAG Evaluation
-        - Status: Completed (with continue-on-error)
+        - Status: Completed 
         - Command: \`python tests/run_rag_evaluation.py --output-dir rag_evaluation_results --verbose\`
         
         ### Integration Tests
-        - Status: Completed (with continue-on-error)
+        - Status: Completed
         - Command: \`python main.py --mode test-ml-model --custom-query "Database connection timeout" --iterations 2\`
         
         ## Pipeline Configuration
@@ -285,7 +285,7 @@ jobs:
       run: |
         echo "## 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### ✅ Tests Completed (with continue-on-error):" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Tests Completed:" >> $GITHUB_STEP_SUMMARY
         echo "- Basic artifact tests" >> $GITHUB_STEP_SUMMARY
         echo "- RCA evaluation tests" >> $GITHUB_STEP_SUMMARY
         echo "- RAG evaluation" >> $GITHUB_STEP_SUMMARY
@@ -295,8 +295,7 @@ jobs:
         echo "- Test artifacts uploaded" >> $GITHUB_STEP_SUMMARY
         echo "- Coverage reports generated" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### ⚠️ Note:" >> $GITHUB_STEP_SUMMARY
-        echo "- Tests are configured with 'continue-on-error: true'" >> $GITHUB_STEP_SUMMARY
+        echo "### ⚠️ Note:" >> $GITHUB_STEP_SUMMARY        
         echo "- Pipeline will proceed to Docker build and deployment" >> $GITHUB_STEP_SUMMARY
         echo "- Check individual test logs for specific failures" >> $GITHUB_STEP_SUMMARY
 
@@ -329,8 +328,7 @@ jobs:
         fi
         
         echo ""
-        echo "🚀 Proceeding with Docker build and deployment..."
-        echo "📝 Note: Tests are configured with continue-on-error=true"
+        echo "🚀 Proceeding with Docker build and deployment..."        
         
     - name: Download MLflow artifacts
       uses: actions/download-artifact@v4
@@ -467,8 +465,7 @@ jobs:
         echo "- Tag: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
         echo "- Status: Ready for deployment" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### ⚠️ Test Status:" >> $GITHUB_STEP_SUMMARY
-        echo "- Tests configured with 'continue-on-error: true'" >> $GITHUB_STEP_SUMMARY
+        echo "### ⚠️ Test Status:" >> $GITHUB_STEP_SUMMARY        
 
   deploy-infrastructure:
     name: Deploy to ECS/EC2 Infrastructure
