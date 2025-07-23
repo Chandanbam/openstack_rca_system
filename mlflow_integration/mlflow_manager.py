@@ -133,6 +133,10 @@ class MLflowManager:
                     )
                     logger.info(f"✅ Created new MLflow experiment: {experiment_name} (ID: {experiment_id})")
                     mlflow.set_experiment(experiment_name)
+                except Exception as create_error:
+                    logger.error(f"❌ Failed to create experiment as fallback: {create_error}")
+                    self.enable_mlflow = False
+                    return
                 
         except Exception as e:
             logger.error(f"Failed to initialize MLflow: {e}")

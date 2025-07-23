@@ -12,10 +12,14 @@ env:
   DOCKER_IMAGE: 'openstack-rca-system'
   ECS_CLUSTER: 'openstack-rca-cluster'
   ECS_SERVICE: 'openstack-rca-service'
+  EC2_INSTANCE_TYPE: 't2.micro'
+  EC2_AMI_ID: 'ami-0b32d400456908bf9'
+  EC2_VOLUME_SIZE: '30'
+  EC2_VOLUME_TYPE: 'gp3'
 
 jobs:
   train-and-mlflow:
-    name: Train Model & Deploy to MLflow
+    name: Train Model & MLflow Integration
     runs-on: ubuntu-latest
     
     steps:
@@ -185,20 +189,17 @@ jobs:
         echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
         echo "AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}" >> $GITHUB_ENV
         
-    - name: Run basic artifact tests
-      continue-on-error: true
+    - name: Run basic artifact tests      
       run: |
         echo "🧪 Running basic artifact tests..."
         python -m pytest tests/test_artifacts.py -v || echo "⚠️ Basic artifact tests failed, continuing..."
         
-    - name: Run RCA evaluation tests
-      continue-on-error: true
+    - name: Run RCA evaluation tests      
       run: |
         echo "🔍 Running RCA evaluation tests..."
         python -m pytest tests/test_rca_evaluation.py -v || echo "⚠️ RCA evaluation tests failed, continuing..."
         
-    - name: Run RAG evaluation script
-      continue-on-error: true
+    - name: Run RAG evaluation script      
       run: |
         # Create .env file with secrets for RAG evaluation
         cat > .env << EOF
@@ -214,8 +215,7 @@ jobs:
         # Run comprehensive RAG evaluation using the runner script
         python tests/run_rag_evaluation.py --output-dir rag_evaluation_results --verbose || echo "⚠️ RAG evaluation failed, continuing..."
         
-    - name: Run integration tests
-      continue-on-error: true
+    - name: Run integration tests      
       run: |
         # Create .env file with secrets for integration tests
         cat > .env << EOF
@@ -523,8 +523,8 @@ jobs:
           --launch-template-name openstack-rca-lt \
           --version-description "OpenStack RCA ECS Launch Template" \
           --launch-template-data '{
-            "ImageId": "ami-0c02fb55956c7d316",
-            "InstanceType": "t2.micro",
+            "ImageId": "'${{ env.EC2_AMI_ID }}'",
+            "InstanceType": "'${{ env.EC2_INSTANCE_TYPE }}'",
             "KeyName": "'${{ secrets.EC2_KEY_NAME }}'",
             "SecurityGroupIds": ["'${{ secrets.ECS_SECURITY_GROUP_IDS }}'"],
             "SubnetId": "'${{ secrets.ECS_SUBNET_IDS }}'",
@@ -536,8 +536,8 @@ jobs:
               {
                 "DeviceName": "/dev/xvda",
                 "Ebs": {
-                  "VolumeSize": 30,
-                  "VolumeType": "gp3",
+                  "VolumeSize": '${{ env.EC2_VOLUME_SIZE }}',
+                  "VolumeType": "'${{ env.EC2_VOLUME_TYPE }}'",
                   "DeleteOnTermination": true
                 }
               }
@@ -745,7 +745,10 @@ jobs:
         echo "- Memory: ${{ env.ECS_MEMORY }} MB" >> $GITHUB_STEP_SUMMARY
         echo "- Port: ${{ env.ECS_CONTAINER_PORT }}" >> $GITHUB_STEP_SUMMARY
         echo "- Desired Count: ${{ env.ECS_DESIRED_COUNT }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Instance Type: t2.micro" >> $GITHUB_STEP_SUMMARY
+        echo "- Instance Type: ${{ env.EC2_INSTANCE_TYPE }}" >> $GITHUB_STEP_SUMMARY
+        echo "- AMI ID: ${{ env.EC2_AMI_ID }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Volume Size: ${{ env.EC2_VOLUME_SIZE }} GB" >> $GITHUB_STEP_SUMMARY
+        echo "- Volume Type: ${{ env.EC2_VOLUME_TYPE }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📊 Production Resources:" >> $GITHUB_STEP_SUMMARY
         echo "- Docker Image: ${{ env.DOCKER_IMAGE_URI }}" >> $GITHUB_STEP_SUMMARY

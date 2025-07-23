@@ -13,6 +13,36 @@ MLflow provides comprehensive ML lifecycle management with automatic model versi
 - **S3 integration** for scalable model storage
 - **Synchronized access** between CLI and Streamlit
 - **Latest model detection** from S3 folders
+- **Keras 3 compatibility** with legacy mode support
+- **Robust error handling** for deleted experiments
+- **CI/CD integration** with automated model deployment
+
+## 🔧 Recent Fixes and Improvements
+
+### **1. Keras 3 Compatibility** ✅
+- **Issue**: Keras 3 compatibility with Transformers library
+- **Solution**: Added `tf-keras` package and `TF_USE_LEGACY_KERAS=1` environment variable
+- **Impact**: Ensures model training and loading works with latest Keras versions
+
+### **2. MLflow Experiment Error Handling** ✅
+- **Issue**: Errors when experiments were deleted
+- **Solution**: Added logic to restore or recreate deleted experiments
+- **Code**: Enhanced `MLflowManager.__init__()` with experiment restoration
+
+### **3. Model File Format** ✅
+- **Issue**: Model format compatibility
+- **Solution**: Standardized on `.keras` format for modern Keras compatibility
+- **Files**: `lstm_log_classifier.keras` and `lstm_log_classifier_info.pkl`
+
+### **4. CI/CD Integration** ✅
+- **Issue**: Models not available for Docker build
+- **Solution**: Enhanced artifact handling and model copying in CI/CD pipeline
+- **Features**: Automatic model download and preparation for Docker builds
+
+### **5. Error Handling Improvements** ✅
+- **Issue**: Incomplete try-except blocks in MLflow manager
+- **Solution**: Fixed syntax errors and added proper error handling
+- **Result**: Robust initialization and graceful failure handling
 
 ## 🏗️ MLflow Architecture
 
