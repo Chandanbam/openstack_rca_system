@@ -1,0 +1,91 @@
+{
+  "timestamp": "2025-07-23T16:54:08.421014",
+  "evaluation_summary": {
+    "total_queries": 4,
+    "evaluation_type": "RAG Pipeline Evaluation",
+    "metrics_included": [
+      "precision",
+      "recall",
+      "f1",
+      "context_relevance",
+      "answer_relevance",
+      "groundedness"
+    ]
+  },
+  "metrics": {
+    "retrieval": {
+      "avg_precision": 0.708,
+      "avg_recall": 1.0,
+      "avg_f1": 0.792,
+      "precision_at_3": 0.708
+    },
+    "rag_triad": {
+      "avg_context_relevance": 0.312,
+      "avg_answer_relevance": 0.804,
+      "avg_groundedness": 0.378
+    },
+    "overall_rag_score": 0.572
+  },
+  "query_details": {
+    "What is OpenStack?": {
+      "retrieval_metrics": {
+        "precision": 0.5,
+        "recall": 1.0,
+        "f1": 0.667,
+        "true_positives": 1,
+        "retrieved_count": 2,
+        "relevant_count": 1
+      },
+      "context_relevance": 0.333,
+      "answer_relevance": 0.667,
+      "groundedness": 0.458,
+      "retrieved_doc_count": 2,
+      "response_length": 186
+    },
+    "How does Nova work?": {
+      "retrieval_metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "true_positives": 1,
+        "retrieved_count": 1,
+        "relevant_count": 1
+      },
+      "context_relevance": 0.25,
+      "answer_relevance": 0.75,
+      "groundedness": 0.286,
+      "retrieved_doc_count": 1,
+      "response_length": 147
+    },
+    "What is the networking service?": {
+      "retrieval_metrics": {
+        "precision": 0.333,
+        "recall": 1.0,
+        "f1": 0.5,
+        "true_positives": 1,
+        "retrieved_count": 3,
+        "relevant_count": 1
+      },
+      "context_relevance": 0.267,
+      "answer_relevance": 0.8,
+      "groundedness": 0.519,
+      "retrieved_doc_count": 3,
+      "response_length": 219
+    },
+    "Tell me about cloud computing": {
+      "retrieval_metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "true_positives": 1,
+        "retrieved_count": 1,
+        "relevant_count": 1
+      },
+      "context_relevance": 0.4,
+      "answer_relevance": 1.0,
+      "groundedness": 0.25,
+      "retrieved_doc_count": 1,
+      "response_length": 156
+    }
+  }
+}
