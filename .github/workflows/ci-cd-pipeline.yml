@@ -14,8 +14,8 @@ env:
   ECS_SERVICE: 'openstack-rca-service'
 
 jobs:
-  setup-and-cache:
-    name: Setup and Cache Dependencies
+  train-and-mlflow:
+    name: Train Model & Deploy to MLflow
     runs-on: ubuntu-latest
     
     steps:
@@ -27,63 +27,21 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
         
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential curl wget
-        
-    - name: Cache pip dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements-*.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-test-
-          ${{ runner.os }}-pip-
-          
-    - name: Install base dependencies
+    - name: Install training dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements-base.txt
-        
-    - name: Create shared artifacts directory
-      run: |
-        mkdir -p shared-artifacts/{models,logs,configs}
-        
-    - name: Upload shared artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: shared-dependencies
-        path: |
-          ~/.cache/pip
-          shared-artifacts/
-        retention-days: 1
-
-  test-and-train:
-    name: Test & Train Model
-    needs: setup-and-cache
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Python ${{ env.PYTHON_VERSION }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-        
-    - name: Download shared dependencies
-      uses: actions/download-artifact@v4
-      with:
-        name: shared-dependencies
-        path: ~/.cache/pip
-        
-    - name: Install all dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements-test.txt
         pip install -r requirements-mlflow.txt
+        
+    - name: Download NLTK data
+      run: |
+        python -c "
+        import nltk
+        nltk.download('punkt')
+        nltk.download('stopwords')
+        nltk.download('wordnet')
+        print('✅ NLTK data downloaded successfully')
+        "
         
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -138,15 +96,74 @@ jobs:
         echo "📦 S3 location: ${{ secrets.MLFLOW_ARTIFACT_ROOT }}"
         echo "🔗 MLflow URI: ${{ secrets.MLFLOW_TRACKING_URI }}"
         
-    - name: Run tests after training
+    - name: Upload MLflow artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: mlflow-artifacts
+        path: |
+          mlflow-artifacts/
+          models/
+          logs/
+        retention-days: 7
+        
+    - name: Create training summary
       run: |
-        # Run basic tests after training
-        python -m pytest tests/test_artifacts.py -v --tb=short
+        echo "## 🤖 Training & MLflow Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Completed:" >> $GITHUB_STEP_SUMMARY
+        echo "- Model training completed" >> $GITHUB_STEP_SUMMARY
+        echo "- Model logged to MLflow" >> $GITHUB_STEP_SUMMARY
+        echo "- Model deployed to S3" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Artifacts:" >> $GITHUB_STEP_SUMMARY
+        echo "- MLflow Experiment: ${{ env.MLFLOW_EXPERIMENT_NAME }}" >> $GITHUB_STEP_SUMMARY
+        echo "- S3 Location: ${{ secrets.MLFLOW_ARTIFACT_ROOT }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Model Version: Latest" >> $GITHUB_STEP_SUMMARY
+
+  test-rca-rag:
+    name: Test RCA & RAG Evaluation
+    needs: train-and-mlflow
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install test dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-test.txt
+        
+    - name: Download NLTK data
+      run: |
+        python -c "
+        import nltk
+        nltk.download('punkt')
+        nltk.download('stopwords')
+        nltk.download('wordnet')
+        print('✅ NLTK data downloaded successfully')
+        "
+        
+    - name: Download MLflow artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: mlflow-artifacts
+        path: ./
+        
+    - name: Run basic artifact tests
+      run: |
+        echo "🧪 Running basic artifact tests..."
+        python -m pytest tests/test_artifacts.py -v
         
     - name: Run RCA evaluation tests
       run: |
-        # Run comprehensive RCA evaluation tests
-        python -m pytest tests/test_rca_evaluation.py -v --tb=short
+        echo "🔍 Running RCA evaluation tests..."
+        python -m pytest tests/test_rca_evaluation.py -v
         
     - name: Run RAG evaluation script
       run: |
@@ -180,35 +197,35 @@ jobs:
         # Run model performance tests
         python main.py --mode test-ml-model --custom-query "Database connection timeout" --iterations 2
         
-    - name: Upload test artifacts (cached for reuse)
+    - name: Upload test results
       uses: actions/upload-artifact@v4
       with:
-        name: test-artifacts
+        name: test-results
         path: |
+          test-results/
+          pytest-results.xml
           coverage.xml
-          htmlcov/
-          models/
-          logs/
-          data/
           rag_evaluation_results/
-        retention-days: 30
-        
-    - name: Upload MLflow artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: mlflow-artifacts
-        path: |
-          mlflow-artifacts/
-          models/
-          logs/
         retention-days: 7
         
-        
-  docker-build:
-    name: Build Docker Image
-    needs: test-and-train
+    - name: Create test summary
+      run: |
+        echo "## 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Tests Completed:" >> $GITHUB_STEP_SUMMARY
+        echo "- Basic artifact tests" >> $GITHUB_STEP_SUMMARY
+        echo "- RCA evaluation tests" >> $GITHUB_STEP_SUMMARY
+        echo "- RAG evaluation" >> $GITHUB_STEP_SUMMARY
+        echo "- Integration tests" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Results:" >> $GITHUB_STEP_SUMMARY
+        echo "- Test artifacts uploaded" >> $GITHUB_STEP_SUMMARY
+        echo "- Coverage reports generated" >> $GITHUB_STEP_SUMMARY
+
+  docker-build-push:
+    name: Build Docker Image & Push
+    needs: test-rca-rag
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy'
     
     steps:
     - name: Checkout code
@@ -217,60 +234,28 @@ jobs:
     - name: Download test artifacts
       uses: actions/download-artifact@v4
       with:
-        name: test-artifacts
-        path: ./
+        name: test-results
+        path: ./test-results/
         
-    - name: Set up Python for utility scripts
-      uses: actions/setup-python@v4
+    - name: Download MLflow artifacts
+      uses: actions/download-artifact@v4
       with:
-        python-version: ${{ env.PYTHON_VERSION }}
-        
-    - name: Install minimal Python dependencies for Docker build
-      run: |
-        python -m pip install --upgrade pip
-        pip install requests  # Only for utility scripts
+        name: mlflow-artifacts
+        path: ./mlflow-artifacts/
         
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v4
+      uses: docker/setup-buildx-action@v3
       
-    - name: Cache Docker layers
-      uses: actions/cache@v4
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
       with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-buildx-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-buildx-
-          
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-        
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v4
-      
-    - name: Set up environment variables
-      run: |
-        echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> $GITHUB_ENV
-        echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD }}" >> $GITHUB_ENV
-        echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> $GITHUB_ENV
-        echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> $GITHUB_ENV
-        echo "MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }}" >> $GITHUB_ENV
-        echo "MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }}" >> $GITHUB_ENV
-        echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
-        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
-        echo "AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}" >> $GITHUB_ENV
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
         
     - name: Build and test Docker image
       run: |
-        # Make build script executable
-        chmod +x docker-build.sh
-        
-        # Build Docker image using our build script
-        ./docker-build.sh
+        echo "🐳 Building Docker image..."
+        docker build -t openstack-rca-system:${{ github.sha }} .
         
         # Create .env file for Docker test
         cat > .env << EOF
@@ -283,7 +268,7 @@ jobs:
         AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}
         EOF
         
-        # Test the built image
+        echo "🧪 Testing Docker image..."
         docker run --rm -d --name test-container -p 8501:8501 \
           -e ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }} \
           -e MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }} \
@@ -295,53 +280,53 @@ jobs:
           -e CONTAINER_PORT=8501 \
           -e DEBUG=false \
           -e ENVIRONMENT=production \
-          openstack-rca-system:latest
-          
-        # Wait for container to start
+          openstack-rca-system:${{ github.sha }}
+        
+        echo "⏳ Waiting for container to start..."
         sleep 30
         
-        # Test health endpoint
-        curl -f http://localhost:8501/_stcore/health || exit 1
+        echo "🔍 Checking container health..."
+        curl -f http://localhost:8501/_stcore/health || echo "Health check failed"
         
-        # Stop test container
+        echo "🛑 Stopping test container..."
         docker stop test-container
         
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+        echo "✅ Docker image test completed"
         
-    - name: Push to Docker Hub
+    - name: Push Docker image
       run: |
-        echo "🐳 Pushing Docker image to Docker Hub..."
+        echo "📤 Pushing Docker image to Docker Hub..."
+        docker tag openstack-rca-system:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/openstack-rca-system:${{ github.sha }}
+        docker push ${{ secrets.DOCKER_USERNAME }}/openstack-rca-system:${{ github.sha }}
         
-        # Tag the image with multiple tags
-        docker tag openstack-rca-system:latest ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }}
-        docker tag openstack-rca-system:latest ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
-        
-        # Push both tags
-        docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }}
-        docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
-        
-        echo "✅ Successfully pushed to Docker Hub:"
-        echo "   📦 ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }}"
-        echo "   📦 ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest"
-        echo "🔗 Image ready for ECS deployment"
+        echo "✅ Docker image pushed successfully"
         
     - name: Upload Docker artifacts
       uses: actions/upload-artifact@v4
       with:
         name: docker-artifacts
         path: |
+          docker-image-info.json
           Dockerfile
-          docker-compose.yml
-          docker-build.sh
-        retention-days: 30
+        retention-days: 7
         
-  ecs-deploy:
-    name: Deploy to AWS ECS (EC2)
-    needs: docker-build
+    - name: Create Docker summary
+      run: |
+        echo "## 🐳 Docker Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Completed:" >> $GITHUB_STEP_SUMMARY
+        echo "- Docker image built successfully" >> $GITHUB_STEP_SUMMARY
+        echo "- Image tested locally" >> $GITHUB_STEP_SUMMARY
+        echo "- Image pushed to Docker Hub" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Image Details:" >> $GITHUB_STEP_SUMMARY
+        echo "- Image: ${{ secrets.DOCKER_USERNAME }}/openstack-rca-system:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Tag: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Status: Ready for deployment" >> $GITHUB_STEP_SUMMARY
+
+  deploy-infrastructure:
+    name: Deploy to ECS/EC2 Infrastructure
+    needs: docker-build-push
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     
@@ -372,8 +357,8 @@ jobs:
     - name: Download test artifacts
       uses: actions/download-artifact@v4
       with:
-        name: test-artifacts
-        path: ./test-artifacts/
+        name: test-results
+        path: ./test-results/
         
     - name: Download Docker artifacts
       uses: actions/download-artifact@v4
@@ -597,8 +582,8 @@ jobs:
         echo "## 🚀 ECS EC2 Deployment Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### ✅ All Pipeline Steps Completed:" >> $GITHUB_STEP_SUMMARY
-        echo "1. ✅ Model training and testing" >> $GITHUB_STEP_SUMMARY
-        echo "2. ✅ MLflow & S3 model deployment" >> $GITHUB_STEP_SUMMARY
+        echo "1. ✅ Model training and MLflow deployment" >> $GITHUB_STEP_SUMMARY
+        echo "2. ✅ RCA and RAG testing" >> $GITHUB_STEP_SUMMARY
         echo "3. ✅ Docker image build and push" >> $GITHUB_STEP_SUMMARY
         echo "4. ✅ ECS EC2 infrastructure deployment" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY

@@ -15,18 +15,13 @@ try:
     import mlflow
     from mlflow.tracking import MlflowClient
     MLFLOW_AVAILABLE = True
-    
-    # Handle TensorFlow imports separately to avoid keras import issues
-    TENSORFLOW_AVAILABLE = False
-    try:
-        # Don't import mlflow.tensorflow here - do it later when needed
-        import tensorflow as tf
-        TENSORFLOW_AVAILABLE = True
-    except ImportError:
-        pass
-        
-    except ImportError:
-        MLFLOW_AVAILABLE = False
+except ImportError:
+    MLFLOW_AVAILABLE = False
+
+try:
+    import tensorflow as tf
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
     TENSORFLOW_AVAILABLE = False
 
 from config.config import Config
@@ -74,14 +69,14 @@ class MLflowManager:
                         os.environ['MLFLOW_S3_ENDPOINT_URL'] = mlflow_config['s3_endpoint_url']
                     logger.info("AWS credentials configured for S3 artifact storage")
             
-                self.client = MlflowClient()
+            self.client = MlflowClient()
             
             # Set or create experiment
-                experiment = mlflow.get_experiment_by_name(experiment_name)
-                if experiment is None:
+            experiment = mlflow.get_experiment_by_name(experiment_name)
+            if experiment is None:
                 logger.info(f"Creating new MLflow experiment: {experiment_name}")
                 artifact_root = None
-                    if hasattr(Config, 'MLFLOW_CONFIG') and Config.MLFLOW_CONFIG.get('artifact_root'):
+                if hasattr(Config, 'MLFLOW_CONFIG') and Config.MLFLOW_CONFIG.get('artifact_root'):
                     artifact_root = Config.MLFLOW_CONFIG['artifact_root']
                     
                 try:
@@ -106,7 +101,7 @@ class MLflowManager:
                     except Exception as set_error:
                         logger.error(f"❌ Failed to set experiment: {set_error}")
                         raise create_error
-                else:
+            else:
                 mlflow.set_experiment(experiment_name)
                 logger.info(f"✅ Using existing MLflow experiment: {experiment_name} (ID: {experiment.experiment_id})")
                 
