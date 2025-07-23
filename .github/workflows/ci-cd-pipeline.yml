@@ -31,7 +31,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements-base.txt
-        pip install -r requirements-mlflow.txt
+        pip install -r requirements-mlflow.txt        
         
     - name: Download NLTK data
       run: |

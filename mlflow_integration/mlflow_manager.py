@@ -277,8 +277,7 @@ class MLflowManager:
                     os.remove(keras_path)
                     os.rmdir(temp_dir)
             
-            return model_version
-                    
+                    return model_version                                    
                 except Exception as reg_error:
                     logger.error(f"❌ Model registration failed: {reg_error}")
                     # Clean up temp file
@@ -301,7 +300,7 @@ class MLflowManager:
         except Exception as e:
             logger.error(f"Failed to log model: {e}")
             return None
-    
+
     def load_model_with_versioning(self, 
                    model_name: str = "lstm_model", 
                                    version: Union[str, int] = "latest",
@@ -332,28 +331,28 @@ class MLflowManager:
                 logger.error("❌ No S3 configuration found")
                 return None
                 
-                base_artifact_uri = Config.MLFLOW_CONFIG['artifact_root']
+            base_artifact_uri = Config.MLFLOW_CONFIG['artifact_root']
             if not base_artifact_uri or not base_artifact_uri.startswith('s3://'):
                 logger.error("❌ Not using S3 artifact storage")
                 return None
-            
+        
             # Parse S3 URI
             s3_parts = base_artifact_uri.replace('s3://', '').split('/', 1)
             bucket_name = s3_parts[0]
             s3_prefix = s3_parts[1] if len(s3_parts) > 1 else ''
             
             logger.info(f"🔍 Searching for latest model in S3 bucket: {bucket_name}")
-                        
-                        # Initialize S3 client
-                        s3_client = boto3.client('s3')
-                        
+            
+            # Initialize S3 client
+            s3_client = boto3.client('s3')
+            
             # List all folders matching the meaningful pattern (use dynamic environment name)
             environment = self.experiment_name.split('_')[-1] if '_' in self.experiment_name else 'staging'
             folder_pattern = f"openstack-rca-system-{environment}_"
             prefix_pattern = f"{s3_prefix}/{folder_pattern}" if s3_prefix else folder_pattern
             
-                                response = s3_client.list_objects_v2(
-                                    Bucket=bucket_name,
+            response = s3_client.list_objects_v2(
+                Bucket=bucket_name,
                 Prefix=prefix_pattern.strip('/'),
                 Delimiter='/'
             )
