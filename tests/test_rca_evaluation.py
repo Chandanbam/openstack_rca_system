@@ -486,11 +486,11 @@ class TestRealRCAEvaluation:
             if not successful_results:
                 print(f"⚠️ No successful results for {mode} mode")
                 continue
-                
-                # Prepare data for metric calculation
-                ranked_predictions = []
-                ground_truths = []
-                predictions = []
+            
+            # Prepare data for metric calculation
+            ranked_predictions = []
+            ground_truths = []
+            predictions = []
             category_matches = 0
             
             print(f"\n🔍 Analyzing {mode} mode results:")
@@ -515,11 +515,11 @@ class TestRealRCAEvaluation:
                 # Check category accuracy
                 if predicted_cat == expected_cat:
                     category_matches += 1
-                
-                # Calculate metrics
-                if ranked_predictions and ground_truths:
-                    mrr = RCAEvaluationMetrics.calculate_mrr(ranked_predictions, ground_truths)
-                    accuracy = RCAEvaluationMetrics.calculate_root_cause_accuracy(predictions, ground_truths)
+            
+            # Calculate metrics after processing all results
+            if ranked_predictions and ground_truths:
+                mrr = RCAEvaluationMetrics.calculate_mrr(ranked_predictions, ground_truths)
+                accuracy = RCAEvaluationMetrics.calculate_root_cause_accuracy(predictions, ground_truths)
                 category_accuracy = category_matches / len(successful_results)
                 
                 print(f"\n📈 {mode.upper()} MODE METRICS:")
@@ -536,6 +536,8 @@ class TestRealRCAEvaluation:
                     'avg_analysis_time': round(np.mean([r['analysis_time'] for r in successful_results]), 2),
                     'avg_relevant_logs': round(np.mean([r['relevant_logs_count'] for r in successful_results]), 1)
                 }
+            else:
+                print(f"⚠️ No valid predictions for {mode} mode metrics calculation")
         
         # Calculate overall metrics
         if 'fast_mode' in metrics_report['metrics'] and 'hybrid_mode' in metrics_report['metrics']:
