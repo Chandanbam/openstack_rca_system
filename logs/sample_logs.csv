@@ -1,0 +1,9 @@
+timestamp,level,service_type,instance_id,message,host,request_id
+2024-01-15 10:30:00,ERROR,nova-compute,instance-001,Failed to spawn instance: No valid host was found,compute-01,req-001
+2024-01-15 10:31:00,WARNING,nova-scheduler,instance-001,Attempting to claim resources for instance,scheduler-01,req-001
+2024-01-15 10:32:00,ERROR,cinder-volume,instance-002,Volume attachment failed: Connection timeout,storage-01,req-002
+2024-01-15 10:33:00,INFO,neutron-server,instance-003,Successfully created network interface,network-01,req-003
+2024-01-15 10:34:00,CRITICAL,keystone,N/A,Authentication service unavailable,auth-01,req-004
+2024-01-15 10:35:00,ERROR,glance-api,instance-004,Image upload failed: Disk space insufficient,image-01,req-005
+2024-01-15 10:36:00,WARNING,nova-conductor,instance-005,Instance migration started,conductor-01,req-006
+2024-01-15 10:37:00,INFO,neutron-l3-agent,instance-006,Router interface created successfully,l3-agent-01,req-007

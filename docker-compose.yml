@@ -2,54 +2,66 @@ version: '3.8'
 
 services:
   openstack-rca-system:
-    image: chandanbam/openstack-rca-system:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: openstack-rca-system
     ports:
-      - "7051:7051"
-    volumes:
-      # Vector database data
-      - ./data/vector_db:/app/data/vector_db
-      # Cache data
-      - ./data/cache:/app/data/cache
-      # LSTM models
-      - ./models:/app/models
-      # Log files
-      - ./logs:/app/logs
-      # Temporary files for S3 downloads
-      - ./temp:/app/temp
+      - "${CONTAINER_PORT:-7051}:7051"
     environment:
-      # MLflow configuration (optional)
-      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-}
-      - MLFLOW_ARTIFACT_ROOT=${MLFLOW_ARTIFACT_ROOT:-}
-      - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL:-}
-      - MLFLOW_ENABLED=${MLFLOW_ENABLED:-false}
+      # AI API Configuration
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       
-      # AWS credentials for S3 model storage (optional)
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
-      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-}
+      # MLflow Configuration
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+      - MLFLOW_ARTIFACT_ROOT=${MLFLOW_ARTIFACT_ROOT}
+      - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL}
+      - MLFLOW_ENABLED=${MLFLOW_ENABLED}
       
-      # Anthropic API key for RCA analysis
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # AWS Configuration
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
       
-      # Container configuration
+      # Application Configuration
       - PYTHONPATH=/app
+      - NLTK_DATA=/app/nltk_data
+      - TRANSFORMERS_CACHE=/app/data/cache/transformers
+      - HF_HOME=/app/data/cache/huggingface
       - STREAMLIT_SERVER_PORT=7051
       - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+      - ANONYMIZED_TELEMETRY=False
+      - CHROMA_TELEMETRY_ENABLED=False
+      - DEBUG=${DEBUG}
+      - ENVIRONMENT=${ENVIRONMENT}
+    volumes:
+      # Persistent data volumes (vector DB is built into image)
+      - ./data/cache:/app/data/cache
+      - ./logs:/app/logs
+      - ./models:/app/models
+      - ./temp:/app/temp
+      
+      # Optional: Mount configuration files
+      - ./config:/app/config:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7051/_stcore/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7051/_stcore/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
-    
-    # Resource limits (adjust based on your system)
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-          cpus: '2.0'
-        reservations:
-          memory: 2G
-          cpus: '1.0' 
+      start_period: 40s
+    networks:
+      - openstack-rca-network
+
+networks:
+  openstack-rca-network:
+    driver: bridge
+
+volumes:
+  vector_db_data:
+  cache_data:
+  logs_data:
+  models_data:
+  temp_data: 

@@ -1,0 +1,14 @@
+# Development requirements - includes all requirements plus development tools
+-r requirements-docker.txt
+
+# Development and debugging tools
+ipython>=8.0.0
+jupyter>=1.0.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0
+pre-commit>=3.0.0
+
+# Documentation
+sphinx>=6.0.0
+sphinx-rtd-theme>=1.2.0 

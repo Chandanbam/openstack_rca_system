@@ -78,6 +78,24 @@ class OpenStackRCAAssistant:
         
         # Load LSTM model with clear messaging
         self._load_lstm_model_with_messaging()
+        
+        # Initialize RCA analyzer if API key is available
+        self._initialize_rca_analyzer()
+    
+    def _initialize_rca_analyzer(self):
+        """Initialize RCA analyzer if API key is available"""
+        if st.session_state.rca_analyzer is None:
+            api_key = os.getenv('ANTHROPIC_API_KEY')
+            if api_key and st.session_state.lstm_model is not None:
+                try:
+                    st.session_state.rca_analyzer = RCAAnalyzer(
+                        api_key, 
+                        st.session_state.lstm_model
+                    )
+                    st.success("✅ Claude API connected (from environment)")
+                except Exception as e:
+                    st.warning(f"⚠️ Failed to connect Claude API: {e}")
+                    st.session_state.rca_analyzer = None
     
     def _load_lstm_model_with_messaging(self):
         """Load LSTM model with clear messaging about source (MLflow/S3 vs local)"""
@@ -213,9 +231,19 @@ class OpenStackRCAAssistant:
             help="Enter your Anthropic API key for Claude integration"
         )
         
+        # Show API key status
         if api_key:
-            os.environ['ANTHROPIC_API_KEY'] = api_key
-            if st.session_state.rca_analyzer is None:
+            if st.session_state.rca_analyzer is not None:
+                st.sidebar.success("✅ Claude API connected")
+            else:
+                st.sidebar.warning("⚠️ API key set but RCA analyzer not initialized")
+                
+            # Update environment variable if changed
+            if api_key != os.getenv('ANTHROPIC_API_KEY'):
+                os.environ['ANTHROPIC_API_KEY'] = api_key
+                
+            # Initialize RCA analyzer if not already done
+            if st.session_state.rca_analyzer is None and st.session_state.lstm_model is not None:
                 try:
                     st.session_state.rca_analyzer = RCAAnalyzer(
                         api_key, 
@@ -224,6 +252,8 @@ class OpenStackRCAAssistant:
                     st.sidebar.success("✅ Claude API connected")
                 except Exception as e:
                     st.sidebar.error(f"❌ Failed to connect: {e}")
+        else:
+            st.sidebar.error("❌ No API key configured")
         
         # Global prompt display toggle
         st.sidebar.subheader("Display Options")
@@ -809,8 +839,20 @@ nova-compute.log.1.2017-05-16_13:55:31 2017-05-16 00:00:04.500 2931 INFO nova.co
         """Render the RCA chat interface"""
         st.header("🤖 Root Cause Analysis Chat")
         
-        if st.session_state.rca_analyzer is None:
+        # Check API key and RCA analyzer status
+        api_key = os.getenv('ANTHROPIC_API_KEY')
+        
+        if not api_key:
             st.warning("⚠️ Please configure your Anthropic API key in the sidebar to use the RCA chat.")
+            return
+        
+        if st.session_state.rca_analyzer is None:
+            if st.session_state.lstm_model is None:
+                st.warning("⚠️ Please wait for the LSTM model to load before using the RCA chat.")
+            else:
+                st.warning("⚠️ RCA analyzer is initializing. Please wait a moment and try again.")
+                # Try to initialize RCA analyzer
+                self._initialize_rca_analyzer()
             return
         
         # Chat interface

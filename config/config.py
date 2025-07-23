@@ -90,7 +90,7 @@ class Config:
         
         # S3 Artifact Store with proper folder structure
         'artifact_root': os.getenv('MLFLOW_ARTIFACT_ROOT','s3://chandanbam-bucket/group6-capstone'),
-        's3_endpoint_url': os.getenv('MLFLOW_S3_ENDPOINT_URL','https://s3.amazonaws.com'),
+        's3_endpoint_url': os.getenv('MLFLOW_S3_ENDPOINT_URL','https://s3.ap-south-1.amazonaws.com'),
         'aws_access_key_id': os.getenv('AWS_ACCESS_KEY_ID'),
         'aws_secret_access_key': os.getenv('AWS_SECRET_ACCESS_KEY'),
         

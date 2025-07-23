@@ -24,7 +24,6 @@ ENV/
 Thumbs.db
 
 # Local data (will be mounted as volumes)
-data/vector_db/
 data/cache/
 temp/
 mlruns/

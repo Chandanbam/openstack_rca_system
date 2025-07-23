@@ -72,7 +72,6 @@ data/cache/
 .pytest_cache/
 
 # Vector Database
-data/vector_db/
 chroma_db/
 *.chromadb
 
@@ -140,6 +139,7 @@ reports/
 *.sqlite
 *.sqlite3
 *.duckdb
+!data/vector_db/*.sqlite3
 
 # OS Files
 .DS_Store
