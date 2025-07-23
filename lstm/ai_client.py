@@ -5,8 +5,16 @@ from typing import Optional, Dict, Any
 from abc import ABC, abstractmethod
 
 import anthropic
-import google.generativeai as genai
-from google.oauth2 import service_account
+
+# Optional imports for Gemini support
+try:
+    import google.generativeai as genai
+    from google.oauth2 import service_account
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+    genai = None
+    service_account = None
 
 logger = logging.getLogger(__name__)
 
@@ -57,10 +65,18 @@ class GeminiClient(AIClient):
     def __init__(self, service_account_path: str):
         self.service_account_path = service_account_path
         self.model = None
+        if not GEMINI_AVAILABLE:
+            logger.error("Gemini client cannot be initialized: google-generativeai package not available")
+            return
         self._initialize_client()
     
     def _initialize_client(self):
         """Initialize Gemini client with service account"""
+        if not GEMINI_AVAILABLE:
+            logger.error("Cannot initialize Gemini client: required packages not available")
+            self.model = None
+            return
+            
         try:
             # Clear any conflicting Google API environment variables
             clear_google_api_conflicts()
@@ -182,4 +198,4 @@ def clear_google_api_conflicts():
     if cleared_vars:
         logger.info(f"Cleared {len(cleared_vars)} conflicting environment variables: {', '.join(cleared_vars)}")
     
-    return cleared_vars 
+    return cleared_vars

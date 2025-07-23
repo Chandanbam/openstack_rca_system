@@ -9,6 +9,7 @@ api_keys/
 secrets/
 passwords.txt
 credentials.json
+mlruns/
 
 # Python Environment
 __pycache__/
@@ -71,7 +72,6 @@ data/cache/
 .pytest_cache/
 
 # Vector Database
-data/vector_db/
 chroma_db/
 *.chromadb
 
@@ -118,6 +118,8 @@ coverage_reports/
 htmlcov/
 .pytest_cache/
 .tox/
+coverage.xml
+.coverage.*
 
 # Documentation Build
 docs/_build/
@@ -137,6 +139,7 @@ reports/
 *.sqlite
 *.sqlite3
 *.duckdb
+!data/vector_db/*.sqlite3
 
 # OS Files
 .DS_Store
@@ -197,3 +200,12 @@ nohup.out
 
 # Profiling
 .prof
+
+# Docker deployment
+config/docker_config.json
+.env
+temp/
+*.tar.gz
+
+# EC2 deployment
+setup_ec2_deployment.sh.log

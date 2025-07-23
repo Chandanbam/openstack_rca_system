@@ -5,7 +5,7 @@ An intelligent log analysis system that automatically identifies and analyzes is
 ## 🚀 Key Features
 
 - **🤖 LSTM-based Log Analysis**: Deep learning model for pattern recognition in OpenStack logs
-- **🧠 Claude AI Integration**: Advanced natural language analysis for detailed RCA reports  
+- **🧠 Claude AI Integration**: Advanced natural language analysis for detailed RCA reports
 - **📊 Interactive Dashboard**: Streamlit-based web interface for easy log analysis
 - **⚡ Hybrid RCA Engine**: LSTM importance filtering + Vector DB semantic search + TF-IDF
 - **🎯 Dual Analysis Modes**: Full mode (hybrid) and Fast mode (LSTM + TF-IDF only)
@@ -37,6 +37,19 @@ An intelligent log analysis system that automatically identifies and analyzes is
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## 📋 Environment Setup
+
+```bash
+# 1. Copy environment template
+cp env.template .env
+
+# 2. Edit with your credentials  
+nano .env  # Add ANTHROPIC_API_KEY and optionally Docker/MLflow/AWS credentials
+
+# 3. Load environment (if using direnv)
+direnv allow  # Loads .envrc automatically
+```
+
 ## 🚀 Quick Start
 
 ### 1. Environment Setup
@@ -46,9 +59,11 @@ git clone <repository-url>
 cd openstack_rca_system
 
 # Setup environment (see docs/ENVIRONMENT_SETUP.md for details)
-source setup_env.sh
-source venv/bin/activate
-```
+source .envrc  # Load environment variables
+python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
 
 ### 2. Train LSTM Model
 ```bash
@@ -93,10 +108,11 @@ python3 main.py --mode analyze --issue "Your issue"
 ## 📊 Model Management
 
 - **Training**: Models automatically uploaded to MLflow/S3
-- **Storage**: S3 bucket with meaningful folder names (`openstack-rca-system-staging_vXX`)
+- **Storage**: S3 bucket with meaningful folder names (`openstack-rca-system-prod_vXX`)
 - **Loading**: CLI and Streamlit both use latest S3 model
 - **Versioning**: Automatic version incrementing with experiment tracking
 - **Sync**: Both interfaces use identical models from S3
+- **CI/CD**: Automated training and deployment via GitHub Actions
 
 ## 🔧 Project Structure
 
@@ -110,7 +126,12 @@ openstack_rca_system/
 ├── data/                  # Log data and cache
 ├── config/                # Configuration files
 ├── utils/                 # Utilities and feature engineering
+│   └── docker_build_deploy.py  # Docker build utility
+├── tests/                 # Test suite for CI/CD
+├── .github/workflows/     # GitHub Actions CI/CD
 ├── docs/                  # Detailed documentation
+├── Dockerfile             # Container definition
+├── docker-compose.yml     # Container orchestration
 └── requirements.txt       # Python dependencies
 ```
 
@@ -154,6 +175,18 @@ python3 -c "import mlflow; print(mlflow.get_tracking_uri())"
 # Use "🔄 Refresh Model" button in sidebar
 ```
 
+### CI/CD Pipeline Issues
+```bash
+# Run tests locally
+python -m pytest tests/ -v
+
+# Check GitHub Actions status
+# Visit: https://github.com/your-repo/actions
+
+# Debug Docker build
+python utils/docker_build_deploy.py --help
+```
+
 ### Performance Issues
 ```bash
 # Clear log cache
@@ -163,12 +196,37 @@ python3 utils/cache_manager.py clear --target all
 python3 main.py --mode analyze --issue "issue" --fast-mode
 ```
 
+## 🔄 CI/CD Pipeline
+
+### Automated Workflow
+Every commit triggers a comprehensive CI/CD pipeline:
+
+1. **🧪 Test & Train**: Unit tests, model training, and performance validation
+2. **📦 MLflow Deploy**: Versioned model deployment to MLflow & S3
+3. **🐳 Docker Build**: Container image build and testing
+4. **☁️ ECS Deploy**: AWS ECS deployment (placeholder for future implementation)
+
+### Pipeline Features
+- **Automated Testing**: pytest suite with coverage reporting
+- **Model Validation**: Training parameters and inference metrics verification
+- **Version Control**: Automatic model versioning and S3 organization
+- **Container Testing**: Docker image health checks and validation
+- **Deployment Ready**: Infrastructure for AWS ECS deployment
+
+### Manual Pipeline Execution
+```bash
+# Run full pipeline locally
+python -m pytest tests/ -v
+python main.py --mode train --enable-mlflow
+python utils/docker_build_deploy.py
+```
+
 ## 📞 Support
 
 For detailed documentation, see the `docs/` directory. Each manual provides comprehensive guidance for specific operations and troubleshooting.
 
 ## 🏷️ Version
 
-**Current**: v1.0 with MLflow integration and S3 model storage
+**Current**: v2.0 with CI/CD pipeline, automated testing, and deployment infrastructure
 **Latest Model**: Automatically detected from S3 (version-based)
 **Compatibility**: CLI and Streamlit synchronized via shared S3 models 

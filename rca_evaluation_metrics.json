@@ -1,0 +1,21 @@
+{
+  "test_timestamp": "2025-07-23T16:18:35.734998",
+  "test_config": {
+    "evaluation_metrics": [
+      "mrr",
+      "root_cause_accuracy"
+    ],
+    "test_scenarios": [
+      "disk_space_exhaustion",
+      "instance_launch_failure",
+      "network_connectivity",
+      "authentication_error",
+      "resource_allocation_failure"
+    ],
+    "fast_mode_tests": true,
+    "hybrid_mode_tests": true,
+    "mock_anthropic": false
+  },
+  "scenarios_tested": 5,
+  "metrics": {}
+}

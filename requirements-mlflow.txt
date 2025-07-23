@@ -1,0 +1,14 @@
+# MLflow requirements - includes base requirements plus MLflow and AWS tools
+-r requirements-base.txt
+
+# Requirements for MLflow deployment phase
+mlflow>=2.0.0
+boto3>=1.26.0
+tensorflow>=2.10.0
+tf-keras>=2.10.0
+pandas>=1.5.0
+numpy>=1.21.0
+scikit-learn>=1.1.0
+nltk>=3.8.0
+plotly>=5.0.0
+sentence-transformers>=2.0.0

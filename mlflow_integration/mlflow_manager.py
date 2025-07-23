@@ -15,18 +15,13 @@ try:
     import mlflow
     from mlflow.tracking import MlflowClient
     MLFLOW_AVAILABLE = True
-    
-    # Handle TensorFlow imports separately to avoid keras import issues
-    TENSORFLOW_AVAILABLE = False
-    try:
-        # Don't import mlflow.tensorflow here - do it later when needed
-        import tensorflow as tf
-        TENSORFLOW_AVAILABLE = True
-    except ImportError:
-        pass
-        
 except ImportError:
     MLFLOW_AVAILABLE = False
+
+try:
+    import tensorflow as tf
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
     TENSORFLOW_AVAILABLE = False
 
 from config.config import Config
@@ -78,15 +73,29 @@ class MLflowManager:
             
             # Set or create experiment
             experiment = mlflow.get_experiment_by_name(experiment_name)
+            
+            # Handle deleted experiments
+            if experiment is not None and experiment.lifecycle_stage == "deleted":
+                logger.warning(f"Experiment '{experiment_name}' was deleted. Attempting to restore...")
+                try:
+                    # Try to restore the deleted experiment
+                    self.client.restore_experiment(experiment.experiment_id)
+                    logger.info(f"✅ Restored deleted experiment: {experiment_name}")
+                    experiment = mlflow.get_experiment_by_name(experiment_name)
+                except Exception as restore_error:
+                    logger.warning(f"Could not restore experiment: {restore_error}")
+                    # If restore fails, we'll create a new one
+                    experiment = None
+            
             if experiment is None:
                 logger.info(f"Creating new MLflow experiment: {experiment_name}")
                 artifact_root = None
                 if hasattr(Config, 'MLFLOW_CONFIG') and Config.MLFLOW_CONFIG.get('artifact_root'):
                     artifact_root = Config.MLFLOW_CONFIG['artifact_root']
-                
+                    
                 try:
                     experiment_id = mlflow.create_experiment(
-                        experiment_name, 
+                        experiment_name,
                         artifact_location=artifact_root
                     )
                     logger.info(f"✅ Created new MLflow experiment: {experiment_name} (ID: {experiment_id})")
@@ -107,13 +116,28 @@ class MLflowManager:
                         logger.error(f"❌ Failed to set experiment: {set_error}")
                         raise create_error
             else:
-                mlflow.set_experiment(experiment_name)
-                logger.info(f"✅ Using existing MLflow experiment: {experiment_name} (ID: {experiment.experiment_id})")
+                try:
+                    mlflow.set_experiment(experiment_name)
+                    logger.info(f"✅ Using existing MLflow experiment: {experiment_name} (ID: {experiment.experiment_id})")
+                except Exception as set_error:
+                    logger.error(f"❌ Failed to set experiment: {set_error}")
+                    # If setting fails, try to create a new one
+                    logger.info(f"Attempting to create new experiment: {experiment_name}")
+                    artifact_root = None
+                    if hasattr(Config, 'MLFLOW_CONFIG') and Config.MLFLOW_CONFIG.get('artifact_root'):
+                        artifact_root = Config.MLFLOW_CONFIG['artifact_root']
+                    
+                    experiment_id = mlflow.create_experiment(
+                        experiment_name,
+                        artifact_location=artifact_root
+                    )
+                    logger.info(f"✅ Created new MLflow experiment: {experiment_name} (ID: {experiment_id})")
+                    mlflow.set_experiment(experiment_name)
                 
         except Exception as e:
             logger.error(f"Failed to initialize MLflow: {e}")
             self.enable_mlflow = False
-
+    
     def start_run(self, run_name: Optional[str] = None, tags: Optional[Dict[str, str]] = None) -> str:
         """Start MLflow run with meaningful naming"""
         if not self.enable_mlflow:
@@ -140,7 +164,7 @@ class MLflowManager:
         except Exception as e:
             logger.error(f"Failed to start MLflow run: {e}")
             return None
-
+    
     def end_run(self, status: str = "FINISHED"):
         """End MLflow run with S3 summary"""
         if not self.enable_mlflow or not self.active_run:
@@ -153,7 +177,7 @@ class MLflowManager:
             
         except Exception as e:
             logger.error(f"Failed to end MLflow run: {e}")
-
+    
     def log_params(self, params: Dict[str, Any]):
         """Log parameters to MLflow"""
         if not self.enable_mlflow or not self.active_run:
@@ -175,7 +199,7 @@ class MLflowManager:
             
         except Exception as e:
             logger.error(f"Failed to log parameters: {e}")
-
+    
     def log_metrics(self, metrics: Dict[str, Union[float, int]], step: Optional[int] = None):
         """Log metrics to MLflow"""
         if not self.enable_mlflow or not self.active_run:
@@ -195,11 +219,11 @@ class MLflowManager:
             
         except Exception as e:
             logger.error(f"Failed to log metrics: {e}")
-
+    
     def log_model_with_versioning(self, 
-                                  model: Any, 
-                                  model_name: str = "lstm_model",
-                                  model_type: str = "tensorflow",
+                  model: Any, 
+                  model_name: str = "lstm_model",
+                  model_type: str = "tensorflow",
                                   model_stage: str = "Staging",
                                   artifacts: Optional[Dict[str, str]] = None,
                                   signature=None,
@@ -281,9 +305,8 @@ class MLflowManager:
                     # Clean up temp file
                     os.remove(keras_path)
                     os.rmdir(temp_dir)
-                    
-                    return model_version
-                    
+            
+                    return model_version                                    
                 except Exception as reg_error:
                     logger.error(f"❌ Model registration failed: {reg_error}")
                     # Clean up temp file
@@ -307,8 +330,8 @@ class MLflowManager:
             logger.error(f"Failed to log model: {e}")
             return None
 
-    def load_model_with_versioning(self,
-                                   model_name: str = "lstm_model", 
+    def load_model_with_versioning(self, 
+                   model_name: str = "lstm_model", 
                                    version: Union[str, int] = "latest",
                                    stage: Optional[str] = None) -> Optional[Any]:
         """Load model from meaningful S3 folder names by version"""
@@ -323,7 +346,7 @@ class MLflowManager:
         except Exception as e:
             logger.error(f"Failed to load model from meaningful folders: {e}")
             return None
-
+    
     def _load_latest_model_from_meaningful_folders(self):
         """Load the latest model from meaningful S3 folder names"""
         try:
@@ -341,7 +364,7 @@ class MLflowManager:
             if not base_artifact_uri or not base_artifact_uri.startswith('s3://'):
                 logger.error("❌ Not using S3 artifact storage")
                 return None
-            
+        
             # Parse S3 URI
             s3_parts = base_artifact_uri.replace('s3://', '').split('/', 1)
             bucket_name = s3_parts[0]
@@ -443,11 +466,11 @@ class MLflowManager:
                 except:
                     pass
                 return None
-                
+            
         except Exception as e:
             logger.error(f"❌ Meaningful folder model download failed: {e}")
             return None
-
+    
     @property
     def is_enabled(self) -> bool:
         """Check if MLflow is enabled"""
@@ -474,4 +497,4 @@ class MLflowManager:
             return run_info
         except Exception as e:
             logger.error(f"Failed to get run info: {e}")
-            return None 
+            return None

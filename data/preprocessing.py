@@ -9,22 +9,27 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 import logging
+import os
 
 # Download required NLTK data
+# Set NLTK data directory to app directory where we have write permissions
+nltk_data_dir = os.environ.get("NLTK_DATA", "/tmp/nltk_data")
+os.makedirs(nltk_data_dir, exist_ok=True)
+
 try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:
-    nltk.download('punkt')
+    nltk.download('punkt', download_dir=nltk_data_dir)
 
 try:
     nltk.data.find('corpora/stopwords')
 except LookupError:
-    nltk.download('stopwords')
+    nltk.download('stopwords', download_dir=nltk_data_dir)
 
 try:
     nltk.data.find('corpora/wordnet')
 except LookupError:
-    nltk.download('wordnet')
+    nltk.download('wordnet', download_dir=nltk_data_dir)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
