@@ -85,6 +85,16 @@ jobs:
         pip install -r requirements-test.txt
         pip install -r requirements-test.txt
         
+    - name: Download NLTK data
+      run: |
+        python -c "
+        import nltk
+        nltk.download('punkt')
+        nltk.download('stopwords')
+        nltk.download('wordnet')
+        print('✅ NLTK data downloaded successfully')
+        "
+        
     - name: Set up environment variables
       run: |
         echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> $GITHUB_ENV
@@ -162,6 +172,16 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements-mlflow.txt
         pip install -r requirements-mlflow.txt
+        
+    - name: Download NLTK data for MLflow
+      run: |
+        python -c "
+        import nltk
+        nltk.download('punkt')
+        nltk.download('stopwords')
+        nltk.download('wordnet')
+        print('✅ NLTK data downloaded successfully for MLflow')
+        "
         
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
