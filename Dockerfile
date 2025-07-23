@@ -61,6 +61,8 @@ ENV STREAMLIT_SERVER_HEADLESS=true
 ENV STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
 ENV ANONYMIZED_TELEMETRY=False
 ENV CHROMA_TELEMETRY_ENABLED=False
+ENV TF_USE_LEGACY_KERAS=1
+ENV CUDA_VISIBLE_DEVICES=-1
 
 # Note: MLflow, AWS, and AI API environment variables should be provided at runtime
 # via docker run -e, --env-file, or docker-compose environment configuration

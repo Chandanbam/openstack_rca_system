@@ -62,7 +62,7 @@ jobs:
         # Disable CUDA/GPU for CI/CD
         echo "CUDA_VISIBLE_DEVICES=-1" >> $GITHUB_ENV
         echo "TF_CPP_MIN_LOG_LEVEL=2" >> $GITHUB_ENV
-        echo "TF_USE_LEGACY_KERAS=True" >> $GITHUB_ENV
+        echo "TF_USE_LEGACY_KERAS=1" >> $GITHUB_ENV
         
     - name: Train model and deploy to MLflow/S3
       run: |
@@ -280,6 +280,8 @@ jobs:
           -e CONTAINER_PORT=8501 \
           -e DEBUG=false \
           -e ENVIRONMENT=production \
+          -e TF_USE_LEGACY_KERAS=1 \
+          -e CUDA_VISIBLE_DEVICES=-1 \
           openstack-rca-system:${{ github.sha }}
         
         echo "⏳ Waiting for container to start..."
@@ -469,7 +471,9 @@ jobs:
                 {"name": "AWS_DEFAULT_REGION", "value": "${{ secrets.AWS_DEFAULT_REGION }}"},
                 {"name": "CONTAINER_PORT", "value": "${{ env.ECS_CONTAINER_PORT }}"},
                 {"name": "DEBUG", "value": "false"},
-                {"name": "ENVIRONMENT", "value": "production"}
+                {"name": "ENVIRONMENT", "value": "production"},
+                {"name": "TF_USE_LEGACY_KERAS", "value": "1"},
+                {"name": "CUDA_VISIBLE_DEVICES", "value": "-1"}
               ],
               "logConfiguration": {
                 "logDriver": "awslogs",
