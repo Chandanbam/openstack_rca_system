@@ -1,4 +1,6 @@
-version: '3.8'
+# IMPORTANT: Load environment variables before running docker-compose
+# Run: source .envrc && docker-compose up
+# Or: direnv allow && docker-compose up (if using direnv)
 
 services:
   openstack-rca-system:

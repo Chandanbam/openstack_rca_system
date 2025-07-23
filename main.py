@@ -1084,7 +1084,7 @@ def main():
                     logger.info("🔧 Created minimal MLflow manager for S3 operations")
                 except:
                     logger.error("❌ Could not create MLflow manager for S3 operations")
-                    mlflow_manager = None
+                mlflow_manager = None
         else:
             logger.info("📝 MLflow tracking disabled")
         
