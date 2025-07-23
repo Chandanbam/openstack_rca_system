@@ -336,7 +336,53 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: mlflow-artifacts
-        path: ./mlflow-artifacts/
+        path: ./
+        
+    - name: Ensure models directory exists
+      run: |
+        echo "🔧 Ensuring models directory exists for Docker build..."
+        
+        # Create models directory if it doesn't exist
+        mkdir -p models/
+        
+        echo "📦 Looking for models in downloaded artifacts..."
+        echo "Current directory: $(pwd)"
+        echo "Root directory contents:"
+        ls -la ./
+        
+        # Check if models directory exists directly
+        if [ -d "./models" ]; then
+          echo "✅ Found models directory directly in root"
+          echo "📊 Models directory contents:"
+          ls -la ./models/
+        elif [ -d "./mlflow-artifacts/models" ]; then
+          echo "📦 Found models in ./mlflow-artifacts/models/"
+          cp -r ./mlflow-artifacts/models/* models/ 2>/dev/null || echo "No models to copy from ./mlflow-artifacts/models/"
+          echo "✅ Models copied from ./mlflow-artifacts/models/"
+        elif [ -d "./mlflow-artifacts" ]; then
+          echo "📦 Looking for model files directly in ./mlflow-artifacts/"
+          # Look for common model file extensions including .keras
+          find ./mlflow-artifacts/ -name "*.keras" -o -name "*.h5" -o -name "*.pkl" -o -name "*.joblib" -o -name "*.pb" -o -name "*.onnx" 2>/dev/null | head -10
+          # Copy any model files found
+          find ./mlflow-artifacts/ -name "*.keras" -o -name "*.h5" -o -name "*.pkl" -o -name "*.joblib" -o -name "*.pb" -o -name "*.onnx" 2>/dev/null | xargs -I {} cp {} models/ 2>/dev/null || echo "No model files found to copy"
+          echo "✅ Model files copied from ./mlflow-artifacts/"
+        else
+          echo "⚠️ No models found in artifacts"
+        fi
+        
+        # Check if models directory has content
+        echo "📋 Final models directory contents:"
+        ls -la models/ 2>/dev/null || echo "Models directory is empty"
+        
+        if [ -z "$(ls -A models/ 2>/dev/null)" ]; then
+          echo "⚠️ Models directory is empty - creating placeholder"
+          echo "# Models will be loaded from MLflow/S3 at runtime" > models/README.md
+          echo "✅ Created placeholder models directory"
+        else
+          echo "✅ Models directory exists with content"
+          echo "📊 Models found:"
+          ls -la models/
+        fi
         
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
