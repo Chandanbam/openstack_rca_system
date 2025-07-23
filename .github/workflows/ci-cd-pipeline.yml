@@ -103,7 +103,12 @@ jobs:
     - name: Run tests after training
       run: |
         # Run basic tests after training
-        python -m pytest tests/test_inference.py -v --tb=short
+        python -m pytest tests/test_artifacts.py -v --tb=short
+        
+    - name: Run RCA evaluation tests
+      run: |
+        # Run comprehensive RCA evaluation tests
+        python -m pytest tests/test_rca_evaluation.py -v --tb=short
         
     - name: Run integration tests
       run: |
