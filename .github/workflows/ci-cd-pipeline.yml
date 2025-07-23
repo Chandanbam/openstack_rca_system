@@ -95,25 +95,18 @@ jobs:
         echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
         echo "AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}" >> $GITHUB_ENV
         
-    - name: Run unit tests
-      run: |
-        python -m pytest tests/test_inference.py -v --cov=. --cov-report=xml --cov-report=html --tb=short
-        
-    - name: Upload coverage reports
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        
-    - name: Train model and run integration tests
+    - name: Train model first
       run: |
         # Train the model
         python main.py --mode train --enable-mlflow --mlflow-experiment ${{ env.MLFLOW_EXPERIMENT_NAME }}
         
-        # Run training tests (already covered in unit tests above)
-        echo "Training tests already completed in unit test step"
+    - name: Run tests after training
+      run: |
+        # Run basic tests after training
+        python -m pytest tests/test_inference.py -v --tb=short
         
+    - name: Run integration tests
+      run: |
         # Run model performance tests
         python main.py --mode test-ml-model --custom-query "Database connection timeout" --iterations 2
         
