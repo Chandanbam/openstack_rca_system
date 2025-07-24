@@ -199,7 +199,7 @@ jobs:
         echo "🔍 Running RCA evaluation tests..."
         python -m pytest tests/test_rca_evaluation.py -v || echo "⚠️ RCA evaluation tests failed, continuing..."
         
-    - name: Run RAG evaluation script      
+    - name: Run RAG evaluation script           
       run: |
         # Create .env file with secrets for RAG evaluation
         cat > .env << EOF
@@ -215,7 +215,7 @@ jobs:
         # Run comprehensive RAG evaluation using the runner script
         python tests/run_rag_evaluation.py --output-dir rag_evaluation_results --verbose || echo "⚠️ RAG evaluation failed, continuing..."
         
-    - name: Run integration tests      
+    - name: Run integration tests        
       run: |
         # Create .env file with secrets for integration tests
         cat > .env << EOF
@@ -231,8 +231,7 @@ jobs:
         # Run model performance tests
         python main.py --mode test-ml-model --custom-query "Database connection timeout" --iterations 2 || echo "⚠️ Integration tests failed, continuing..."
         
-    - name: Collect test results summary
-      continue-on-error: true
+    - name: Collect test results summary      
       run: |
         echo "📋 Collecting test results summary..."
         

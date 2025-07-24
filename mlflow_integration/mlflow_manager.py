@@ -7,9 +7,16 @@ This module provides streamlined MLflow integration with single keras upload and
 import os
 import logging
 import json
+import tempfile
 from typing import Dict, Any, Optional, Union, List
 from pathlib import Path
 from datetime import datetime
+
+try:
+    import boto3
+    BOTO3_AVAILABLE = True
+except ImportError:
+    BOTO3_AVAILABLE = False
 
 try:
     import mlflow
@@ -353,6 +360,10 @@ class MLflowManager:
     def _load_latest_model_from_meaningful_folders(self):
         """Load the latest model from meaningful S3 folder names"""
         try:
+            if not BOTO3_AVAILABLE:
+                logger.error("❌ boto3 not available for S3 operations")
+                return None
+                
             import boto3
             import tempfile
             import os
@@ -362,8 +373,8 @@ class MLflowManager:
             if not hasattr(Config, 'MLFLOW_CONFIG') or not Config.MLFLOW_CONFIG.get('artifact_root'):
                 logger.error("❌ No S3 configuration found")
                 return None
-                
-                base_artifact_uri = Config.MLFLOW_CONFIG['artifact_root']
+            
+            base_artifact_uri = Config.MLFLOW_CONFIG['artifact_root']
             if not base_artifact_uri or not base_artifact_uri.startswith('s3://'):
                 logger.error("❌ Not using S3 artifact storage")
                 return None
