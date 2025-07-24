@@ -69,7 +69,7 @@ class MLflowManager:
                         os.environ['MLFLOW_S3_ENDPOINT_URL'] = mlflow_config['s3_endpoint_url']
                     logger.info("AWS credentials configured for S3 artifact storage")
             
-            self.client = MlflowClient()
+                self.client = MlflowClient()
             
             # Set or create experiment
             experiment = mlflow.get_experiment_by_name(experiment_name)
@@ -77,17 +77,17 @@ class MLflowManager:
             # Handle deleted experiments
             if experiment is not None and experiment.lifecycle_stage == "deleted":
                 logger.warning(f"Experiment '{experiment_name}' was deleted. Attempting to restore...")
-                try:
+            try:
                     # Try to restore the deleted experiment
                     self.client.restore_experiment(experiment.experiment_id)
                     logger.info(f"✅ Restored deleted experiment: {experiment_name}")
-                    experiment = mlflow.get_experiment_by_name(experiment_name)
+                experiment = mlflow.get_experiment_by_name(experiment_name)
                 except Exception as restore_error:
                     logger.warning(f"Could not restore experiment: {restore_error}")
                     # If restore fails, we'll create a new one
                     experiment = None
             
-            if experiment is None:
+                if experiment is None:
                 logger.info(f"Creating new MLflow experiment: {experiment_name}")
                 artifact_root = None
                 if hasattr(Config, 'MLFLOW_CONFIG') and Config.MLFLOW_CONFIG.get('artifact_root'):
@@ -132,10 +132,10 @@ class MLflowManager:
                         artifact_location=artifact_root
                     )
                     logger.info(f"✅ Created new MLflow experiment: {experiment_name} (ID: {experiment_id})")
-                    mlflow.set_experiment(experiment_name)
+                mlflow.set_experiment(experiment_name)
                 except Exception as create_error:
                     logger.error(f"❌ Failed to create experiment as fallback: {create_error}")
-                    self.enable_mlflow = False
+                self.enable_mlflow = False
                     return
                 
         except Exception as e:
@@ -310,7 +310,7 @@ class MLflowManager:
                     os.remove(keras_path)
                     os.rmdir(temp_dir)
             
-                    return model_version                                    
+            return model_version
                 except Exception as reg_error:
                     logger.error(f"❌ Model registration failed: {reg_error}")
                     # Clean up temp file
@@ -333,7 +333,7 @@ class MLflowManager:
         except Exception as e:
             logger.error(f"Failed to log model: {e}")
             return None
-
+    
     def load_model_with_versioning(self, 
                    model_name: str = "lstm_model", 
                                    version: Union[str, int] = "latest",
@@ -364,29 +364,29 @@ class MLflowManager:
                 logger.error("❌ No S3 configuration found")
                 return None
                 
-            base_artifact_uri = Config.MLFLOW_CONFIG['artifact_root']
+                base_artifact_uri = Config.MLFLOW_CONFIG['artifact_root']
             if not base_artifact_uri or not base_artifact_uri.startswith('s3://'):
                 logger.error("❌ Not using S3 artifact storage")
                 return None
-        
+            
             # Parse S3 URI
             s3_parts = base_artifact_uri.replace('s3://', '').split('/', 1)
             bucket_name = s3_parts[0]
             s3_prefix = s3_parts[1] if len(s3_parts) > 1 else ''
             
             logger.info(f"🔍 Searching for latest model in S3 bucket: {bucket_name}")
-            
-            # Initialize S3 client
-            s3_client = boto3.client('s3')
-            
+                        
+                        # Initialize S3 client
+                        s3_client = boto3.client('s3')
+                        
             # List all objects in the prefix to find model files
-            response = s3_client.list_objects_v2(
-                Bucket=bucket_name,
+                            response = s3_client.list_objects_v2(
+                                Bucket=bucket_name,
                 Prefix=s3_prefix,
                 MaxKeys=1000  # Get more objects to find all models
-            )
-            
-            if 'Contents' not in response:
+                            )
+                            
+                            if 'Contents' not in response:
                 logger.error("❌ No objects found in S3")
                 return None
             
@@ -501,7 +501,7 @@ class MLflowManager:
     def tracking_uri(self) -> Optional[str]:
         """Get current tracking URI"""
         return mlflow.get_tracking_uri() if self.enable_mlflow else None
-
+    
     def get_run_info(self) -> Optional[Dict[str, Any]]:
         """Get information about the current run"""
         if not self.enable_mlflow or not self.active_run:

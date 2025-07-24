@@ -194,4 +194,30 @@ EC2_VOLUME_TYPE: 'gp2'    # General Purpose SSD (legacy)
 EC2_VOLUME_TYPE: 'io1'    # Provisioned IOPS SSD (high performance)
 EC2_VOLUME_TYPE: 'st1'    # Throughput Optimized HDD
 EC2_VOLUME_TYPE: 'sc1'    # Cold HDD (lowest cost)
-``` 
+```
+
+## 🌿 Branch-Specific Behavior
+
+### **Main Branch** (`main`)
+- ✅ All stages run (Train → Test → Docker → Deploy)
+- ✅ Full production deployment to ECS/EC2
+- ✅ Complete CI/CD pipeline execution
+
+### **Deploy Branch** (`deploy`)
+- ✅ All stages run (Train → Test → Docker → Deploy)
+- ✅ Full production deployment to ECS/EC2
+- ✅ Complete CI/CD pipeline execution
+- ✅ **Fixed**: Previously skipped EC2 deployment, now runs correctly
+
+### **Other Branches**
+- ✅ Stages 1-3 run (Train → Test → Docker)
+- ❌ Stage 4 skipped (no deployment)
+- 🔄 Development workflow only
+
+## 🔧 Recent Fixes
+
+### **EC2 Deployment Branch Fix** ✅
+- **Issue**: EC2 deployment step was skipped on `deploy` branch
+- **Problem**: Job condition was `if: github.ref == 'refs/heads/main'` only
+- **Solution**: Updated to `if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy'`
+- **Impact**: EC2 deployment now runs on both `main` and `deploy` branches 

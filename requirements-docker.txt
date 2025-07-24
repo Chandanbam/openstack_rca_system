@@ -16,4 +16,15 @@ pydantic>=1.10.0
 fastapi>=0.95.0
 uvicorn>=0.20.0
 
+# Vector Database and Embeddings (added for RCA system)
+chromadb>=0.4.22
+sentence-transformers>=2.2.2,<3.0.0
+huggingface_hub>=0.15.0,<0.20.0
+
+# Additional dependencies for text processing
+regex>=2023.10.3
+textblob>=0.17.1
+joblib>=1.3.2
+tqdm>=4.66.1
+
 
