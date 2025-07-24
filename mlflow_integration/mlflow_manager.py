@@ -77,17 +77,17 @@ class MLflowManager:
             # Handle deleted experiments
             if experiment is not None and experiment.lifecycle_stage == "deleted":
                 logger.warning(f"Experiment '{experiment_name}' was deleted. Attempting to restore...")
-            try:
+                try:
                     # Try to restore the deleted experiment
                     self.client.restore_experiment(experiment.experiment_id)
                     logger.info(f"✅ Restored deleted experiment: {experiment_name}")
-                experiment = mlflow.get_experiment_by_name(experiment_name)
+                    experiment = mlflow.get_experiment_by_name(experiment_name)
                 except Exception as restore_error:
                     logger.warning(f"Could not restore experiment: {restore_error}")
                     # If restore fails, we'll create a new one
                     experiment = None
             
-                if experiment is None:
+            if experiment is None:
                 logger.info(f"Creating new MLflow experiment: {experiment_name}")
                 artifact_root = None
                 if hasattr(Config, 'MLFLOW_CONFIG') and Config.MLFLOW_CONFIG.get('artifact_root'):
@@ -132,10 +132,10 @@ class MLflowManager:
                         artifact_location=artifact_root
                     )
                     logger.info(f"✅ Created new MLflow experiment: {experiment_name} (ID: {experiment_id})")
-                mlflow.set_experiment(experiment_name)
+                    mlflow.set_experiment(experiment_name)
                 except Exception as create_error:
                     logger.error(f"❌ Failed to create experiment as fallback: {create_error}")
-                self.enable_mlflow = False
+                    self.enable_mlflow = False
                     return
                 
         except Exception as e:
@@ -308,9 +308,8 @@ class MLflowManager:
                     
                     # Clean up temp file
                     os.remove(keras_path)
-                    os.rmdir(temp_dir)
-            
-            return model_version
+                    os.rmdir(temp_dir)        
+                    return model_version
                 except Exception as reg_error:
                     logger.error(f"❌ Model registration failed: {reg_error}")
                     # Clean up temp file
@@ -376,17 +375,17 @@ class MLflowManager:
             
             logger.info(f"🔍 Searching for latest model in S3 bucket: {bucket_name}")
                         
-                        # Initialize S3 client
-                        s3_client = boto3.client('s3')
+            # Initialize S3 client
+            s3_client = boto3.client('s3')
                         
             # List all objects in the prefix to find model files
-                            response = s3_client.list_objects_v2(
-                                Bucket=bucket_name,
-                Prefix=s3_prefix,
-                MaxKeys=1000  # Get more objects to find all models
+            response = s3_client.list_objects_v2(
+            Bucket=bucket_name,
+            Prefix=s3_prefix,
+            MaxKeys=1000  # Get more objects to find all models
                             )
                             
-                            if 'Contents' not in response:
+            if 'Contents' not in response:
                 logger.error("❌ No objects found in S3")
                 return None
             
