@@ -16,6 +16,7 @@ env:
   EC2_AMI_ID: 'ami-0b32d400456908bf9'
   EC2_VOLUME_SIZE: '30'
   EC2_VOLUME_TYPE: 'gp3'
+  SSH_KEY_PATH: ~/.ssh/chandankey.pem  
 
 jobs:
   train-and-mlflow:
