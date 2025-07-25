@@ -438,9 +438,8 @@ jobs:
         
     - name: Push Docker image
       run: |
-        echo "📤 Pushing Docker image to Docker Hub..."
-        docker tag openstack-rca-system:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/openstack-rca-system:${{ github.sha }}
-        docker push ${{ secrets.DOCKER_USERNAME }}/openstack-rca-system:${{ github.sha }}
+        echo "📤 Pushing Docker image to Docker Hub..."        
+        docker push ${{ secrets.DOCKER_USERNAME }}/openstack-rca-system:latest
         
         echo "✅ Docker image pushed successfully"
         
