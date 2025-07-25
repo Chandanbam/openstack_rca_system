@@ -396,7 +396,7 @@ jobs:
     - name: Build and test Docker image
       run: |
         echo "🐳 Building Docker image..."
-        docker build -t openstack-rca-system:${{ github.sha }} .
+        docker build -t openstack-rca-system:latest .
         
         # Create .env file for Docker test
         cat > .env << EOF
