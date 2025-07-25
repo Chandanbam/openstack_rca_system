@@ -469,7 +469,7 @@ jobs:
 
   deploy-infrastructure:
     name: Deploy to ECS/EC2 Infrastructure
-    needs: docker-build-push
+    # needs: docker-build-push
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy'
     
