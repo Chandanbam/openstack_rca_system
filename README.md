@@ -13,6 +13,8 @@ An intelligent log analysis system that automatically identifies and analyzes is
 - **💾 Smart Caching**: Log caching system to avoid repeated file loading
 - **🗄️ VectorDB**: ChromaDB with all-MiniLM-L12-v2 for semantic understanding
 - **📈 High Performance**: Up to 15x faster than traditional approaches
+- **🚀 CI/CD Pipeline**: Automated training, testing, Docker build, and ECS deployment
+- **☁️ AWS Integration**: ECS deployment with EC2 launch type and Auto Scaling
 
 ## 🏗️ System Architecture
 
@@ -35,6 +37,22 @@ An intelligent log analysis system that automatically identifies and analyzes is
 ┌─────────────────────────────────────────────────────────────────┐
 │            Output Layer (CLI + Streamlit Dashboard)             │
 └─────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              CI/CD Pipeline (GitHub Actions)                    │
+├─────────────────┬─────────────────┬─────────────────────────────┤
+│  Train &        │   Test RCA &    │    Docker Build &           │
+│  MLflow         │   RAG           │    Push                     │
+└─────────────────┴─────────────────┴─────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              AWS ECS Deployment (EC2 Launch Type)               │
+├─────────────────┬─────────────────┬─────────────────────────────┤
+│  Auto Scaling   │   Launch        │    ECS Service              │
+│  Group          │   Template      │    with Load Balancer       │
+└─────────────────┴─────────────────┴─────────────────────────────┘
 ```
 
 ## 📋 Environment Setup
@@ -61,9 +79,9 @@ cd openstack_rca_system
 # Setup environment (see docs/ENVIRONMENT_SETUP.md for details)
 source .envrc  # Load environment variables
 python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
+source venv/bin/activate
+pip install -r requirements.txt
+```
 
 ### 2. Train LSTM Model
 ```bash
@@ -80,6 +98,43 @@ python3 main.py --mode analyze --issue "Database timeout errors"
 streamlit run streamlit_app/chatbot.py
 ```
 
+## 🔄 CI/CD Pipeline
+
+The system includes a comprehensive CI/CD pipeline with four stages:
+
+### **Stage 1: Train & MLflow** 🤖
+- Model training with LSTM architecture
+- Automatic MLflow experiment tracking
+- S3 model storage and versioning
+- Model artifact upload for Docker build
+
+### **Stage 2: Test RCA & RAG** 🧪
+- RCA evaluation tests with real scenarios
+- RAG system testing and validation
+- Performance metrics calculation
+- Continue-on-error for development workflow
+
+### **Stage 3: Docker Build & Push** 🐳
+- Multi-stage Docker image build
+- Model integration from MLflow artifacts
+- Docker Hub image push with versioning
+- Local container testing
+
+### **Stage 4: ECS/EC2 Deployment** ☁️
+- AWS ECS cluster with EC2 launch type
+- Auto Scaling Group with Launch Template
+- Configurable EC2 instance types and resources
+- Production-ready deployment
+
+### **EC2 Configuration Variables** ⚙️
+```yaml
+# Configurable in CI/CD pipeline:
+EC2_INSTANCE_TYPE: 't2.micro'        # Instance type (t2.micro, t3.small, etc.)
+EC2_AMI_ID: 'ami-0c02fb55956c7d316'  # Amazon Machine Image ID
+EC2_VOLUME_SIZE: '30'                # EBS volume size in GB
+EC2_VOLUME_TYPE: 'gp3'               # EBS volume type (gp3, gp2, io1)
+```
+
 ## 📚 Documentation
 
 | Manual | Description | Location |
@@ -89,6 +144,8 @@ streamlit run streamlit_app/chatbot.py
 | **Vector Database** | ChromaDB operations, semantic search, data ingestion | [`docs/VECTOR_DB_OPERATIONS.md`](docs/VECTOR_DB_OPERATIONS.md) |
 | **MLflow Integration** | Model versioning, S3 storage, experiment tracking | [`docs/MLFLOW_INTEGRATION.md`](docs/MLFLOW_INTEGRATION.md) |
 | **RCA Analysis** | Fast mode vs Hybrid mode, analysis techniques | [`docs/RCA_ANALYSIS.md`](docs/RCA_ANALYSIS.md) |
+| **CI/CD Pipeline** | Automated deployment, testing, and infrastructure | [`docs/CI_CD_PIPELINE.md`](docs/CI_CD_PIPELINE.md) |
+| **Docker Deployment** | Containerization and Docker best practices | [`docs/DOCKER_DEPLOYMENT.md`](docs/DOCKER_DEPLOYMENT.md) |
 
 ## 🎯 Analysis Modes
 

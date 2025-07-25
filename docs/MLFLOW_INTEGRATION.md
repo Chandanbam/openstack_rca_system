@@ -13,6 +13,45 @@ MLflow provides comprehensive ML lifecycle management with automatic model versi
 - **S3 integration** for scalable model storage
 - **Synchronized access** between CLI and Streamlit
 - **Latest model detection** from S3 folders
+- **Keras 3 compatibility** with legacy mode support
+- **Robust error handling** for deleted experiments
+- **CI/CD integration** with automated model deployment
+
+## 🔧 Recent Fixes and Improvements
+
+### **1. MLflow Download Function** ✅
+- **Issue**: S3 folder structure mismatch causing "No model folders found" errors
+- **Solution**: Fixed `_load_latest_model_from_meaningful_folders()` to work with actual S3 object structure
+- **Changes**: 
+  - Changed from folder-based search to direct object search
+  - Added version extraction from file paths and filenames
+  - Improved error handling and logging
+  - Added Keras compatibility with `tf-keras` and GPU disabling
+
+### **2. Keras 3 Compatibility** ✅
+- **Issue**: Keras 3 compatibility with Transformers library
+- **Solution**: Added `tf-keras` package and `TF_USE_LEGACY_KERAS=1` environment variable
+- **Impact**: Ensures model training and loading works with latest Keras versions
+
+### **3. MLflow Experiment Error Handling** ✅
+- **Issue**: Errors when experiments were deleted
+- **Solution**: Added logic to restore or recreate deleted experiments
+- **Code**: Enhanced `MLflowManager.__init__()` with experiment restoration
+
+### **4. Model File Format** ✅
+- **Issue**: Model format compatibility
+- **Solution**: Standardized on `.keras` format for modern Keras compatibility
+- **Files**: `lstm_model_v*.keras` with version numbering
+
+### **5. CI/CD Integration** ✅
+- **Issue**: Models not available for Docker build
+- **Solution**: Enhanced artifact handling and model copying in CI/CD pipeline
+- **Features**: Automatic model download and preparation for Docker builds
+
+### **6. Error Handling Improvements** ✅
+- **Issue**: Incomplete try-except blocks in MLflow manager
+- **Solution**: Fixed syntax errors and added proper error handling
+- **Result**: Robust initialization and graceful failure handling
 
 ## 🏗️ MLflow Architecture
 
@@ -127,21 +166,36 @@ python3 main.py --mode analyze --issue "Database connection timeout"
 
 # Output:
 # 🔍 Attempting to load model from MLflow/S3...
-# 📦 Found latest model folder: openstack-rca-system-staging_0015 (version 15)
-# ⬇️ Downloading model from meaningful folder: ...staging_0015/models/lstm_model_v15.keras
+# 📦 Found 7 model files in S3
+# 📦 Found latest model file: group6-capstone/openstack-rca-system-prod_0007/models/lstm_model_v7.keras (version 7)
+# ⬇️ Downloading model: group6-capstone/openstack-rca-system-prod_0007/models/lstm_model_v7.keras
+# ✅ Model downloaded to: /tmp/tmpXXXXXX/model.keras
+# 🎯 Model loaded successfully from S3 using tf-keras
 # ✅ Successfully loaded LSTM model from MLflow/S3
 ```
 
 ### 2. Model Loading Process
 ```python
 # What happens during model loading:
-1. Initialize MLflow manager
-2. Search S3 for latest version folder
-3. Find highest version number
-4. Download model.keras to temporary file
-5. Load model into TensorFlow
-6. Clean up temporary file
-7. Use model for RCA analysis
+1. Initialize MLflow manager with S3 configuration
+2. List all objects in S3 prefix to find .keras files
+3. Extract version numbers from file paths and filenames
+4. Find the latest version by comparing version numbers
+5. Download the latest model to temporary file
+6. Load model using tf-keras with GPU disabled
+7. Clean up temporary file
+8. Use model for RCA analysis
+```
+
+### 3. Download Function Improvements
+```python
+# Key improvements in _load_latest_model_from_meaningful_folders():
+- Fixed S3 object structure handling (no more "No model folders found")
+- Added version extraction from both path and filename
+- Improved error handling and logging
+- Added Keras compatibility with tf-keras
+- Disabled GPU to avoid CUDA issues
+- Enhanced temporary file cleanup
 ```
 
 ### 3. Streamlit Integration

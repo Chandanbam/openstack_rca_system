@@ -4,74 +4,81 @@ Complete guide for the OpenStack RCA System continuous integration and deploymen
 
 ## 🚀 Overview
 
-The CI/CD pipeline automates the entire development lifecycle from code commit to production deployment:
+The CI/CD pipeline automates the entire development lifecycle from code commit to production deployment with four comprehensive stages:
 
 ```
-Code Commit → Test & Train → MLflow Deploy → Docker Build → ECS Deploy
+Code Commit → Train & MLflow → Test RCA & RAG → Docker Build & Push → ECS/EC2 Deploy
 ```
 
 ## 📋 Pipeline Stages
 
-### 1. Test & Train Stage
-**Trigger**: Every commit to `main` or `develop` branches
+### **Stage 1: Train & MLflow** 🤖
+**Trigger**: Every commit to `main` or `deploy` branches
 
 **Actions**:
-- ✅ Unit tests with pytest
-- ✅ Model training with MLflow integration
-- ✅ Performance validation
-- ✅ Coverage reporting
-- ✅ Integration tests
+- ✅ LSTM model training with Keras 3 compatibility
+- ✅ MLflow experiment setup and tracking
+- ✅ S3 model storage and versioning
+- ✅ Model artifact upload for Docker build
+- ✅ Environment variable configuration
 
 **Artifacts**:
-- Test coverage reports
-- Trained model files
-- Performance metrics
-
-### 2. MLflow Deploy Stage
-**Trigger**: Only on `main` branch after successful test stage
-
-**Actions**:
-- ✅ Model versioning and registration
-- ✅ S3 artifact upload
-- ✅ MLflow experiment tracking
-- ✅ Model deployment verification
-
-**Artifacts**:
-- Versioned model in S3
+- Trained LSTM model (`.keras` format)
 - MLflow experiment metadata
-- Model registry entries
+- Model artifacts for Docker build
+- Training logs and metrics
 
-### 3. Docker Build Stage
-**Trigger**: Only on `main` branch after successful MLflow deploy
+### **Stage 2: Test RCA & RAG** 🧪
+**Trigger**: After successful Stage 1
 
 **Actions**:
-- ✅ Docker image build
+- ✅ RCA evaluation tests with real scenarios
+- ✅ RAG system testing and validation
+- ✅ Performance metrics calculation (MRR, accuracy)
+- ✅ Continue-on-error for development workflow
+- ✅ Test results summary and reporting
+
+**Artifacts**:
+- Test results and coverage reports
+- Performance metrics (MRR, accuracy scores)
+- RCA evaluation reports
+- Test artifacts for debugging
+
+### **Stage 3: Docker Build & Push** 🐳
+**Trigger**: After successful Stage 2
+
+**Actions**:
+- ✅ Multi-stage Docker image build
+- ✅ Model integration from MLflow artifacts
 - ✅ Container health testing
-- ✅ Image validation
-- ✅ Docker Hub push (placeholder)
+- ✅ Docker Hub image push with versioning
+- ✅ Local container validation
 
 **Artifacts**:
 - Docker image with latest model
 - Container health status
-- Build logs
+- Build logs and validation results
+- Pushed image to Docker Hub
 
-### 4. ECS Deploy Stage
-**Trigger**: Only on `main` branch after successful Docker build
+### **Stage 4: ECS/EC2 Deployment** ☁️
+**Trigger**: After successful Stage 3 (runs on `main` and `deploy` branches)
 
 **Actions**:
-- ⏳ AWS ECS deployment (placeholder)
-- ⏳ Load balancer configuration
-- ⏳ Auto-scaling setup
-- ⏳ Health monitoring
+- ✅ AWS ECS cluster creation with EC2 launch type
+- ✅ Auto Scaling Group with Launch Template
+- ✅ ECS service deployment with load balancing
+- ✅ Health monitoring and status reporting
+- ✅ Production endpoint configuration
 
 **Artifacts**:
-- Deployment status
-- Service endpoints
-- Monitoring metrics
+- ECS cluster and service status
+- EC2 instance details and endpoints
+- Deployment summary and metrics
+- Production service URLs
 
 ## 🔧 Configuration
 
-### GitHub Secrets Required
+### **GitHub Secrets Required**
 
 Set these secrets in your GitHub repository settings:
 
@@ -89,338 +96,128 @@ AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_DEFAULT_REGION=ap-south-1
 
-# Docker Hub (for future implementation)
+# Docker Hub
 DOCKER_USERNAME=your_username
 DOCKER_PASSWORD=your_password
+
+# ECS/EC2 Deployment
+EC2_KEY_NAME=your-ec2-key-pair
+ECS_SECURITY_GROUP_IDS=sg-xxxxxxxxx
+ECS_SUBNET_IDS=subnet-xxxxxxxxx
 ```
 
-### Environment Variables
+### **Environment Variables**
 
-The pipeline uses these environment variables:
+The pipeline uses these configurable environment variables:
 
 ```yaml
-env:
-  PYTHON_VERSION: '3.10'
-  MLFLOW_EXPERIMENT_NAME: 'openstack_rca_system_staging'
-  DOCKER_IMAGE: 'openstack-rca-system'
-  ECS_CLUSTER: 'openstack-rca-cluster'
-  ECS_SERVICE: 'openstack-rca-service'
+# Core Configuration
+PYTHON_VERSION: '3.10'
+MLFLOW_EXPERIMENT_NAME: 'openstack_rca_system_prod'
+DOCKER_IMAGE: 'openstack-rca-system'
+
+# ECS Configuration
+ECS_CLUSTER: 'openstack-rca-cluster'
+ECS_SERVICE: 'openstack-rca-service'
+ECS_CPU: '256'
+ECS_MEMORY: '512'
+ECS_CONTAINER_PORT: '7051'
+ECS_DESIRED_COUNT: '1'
+
+# EC2 Configuration (Configurable)
+EC2_INSTANCE_TYPE: 't2.micro'        # Instance type (t2.micro, t3.small, etc.)
+EC2_AMI_ID: 'ami-0c02fb55956c7d316'  # Amazon Machine Image ID
+EC2_VOLUME_SIZE: '30'                # EBS volume size in GB
+EC2_VOLUME_TYPE: 'gp3'               # EBS volume type (gp3, gp2, io1)
+
+# MLflow Configuration
+MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+MLFLOW_ARTIFACT_ROOT: ${{ secrets.MLFLOW_ARTIFACT_ROOT }}
+MLFLOW_S3_ENDPOINT_URL: ${{ secrets.MLFLOW_S3_ENDPOINT_URL }}
+
+# AWS Configuration
+AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+
+# AI Configuration
+ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+# Docker Configuration
+DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 ```
 
-## 🧪 Testing Strategy
+### **EC2 Instance Configuration**
 
-### Unit Tests
-```bash
-# Run all tests
-python -m pytest tests/ -v
+The pipeline supports configurable EC2 instances for different environments:
 
-# Run with coverage
-python -m pytest tests/ -v --cov=. --cov-report=html
-
-# Run specific test file
-python -m pytest tests/test_inference.py -v
+#### **Development (Cost-Effective)**
+```yaml
+EC2_INSTANCE_TYPE: 't2.micro'    # $8.47/month
+EC2_VOLUME_SIZE: '20'            # 20 GB
+EC2_VOLUME_TYPE: 'gp3'           # General Purpose
 ```
 
-### Test Categories
-
-1. **Model Inference Tests** (`tests/test_inference.py`)
-   - Model loading validation
-   - Prediction shape verification
-   - Performance metrics
-   - Input validation
-
-2. **MLflow Integration Tests**
-   - Manager initialization
-   - Model versioning
-   - S3 connectivity
-
-3. **Configuration Tests**
-   - Parameter validation
-   - Environment loading
-   - Default values
-
-### Test Coverage Requirements
-
-- **Minimum Coverage**: 80%
-- **Critical Paths**: 95%
-- **Model Components**: 90%
-
-## 📦 Model Deployment
-
-### MLflow Integration
-
-The pipeline automatically:
-
-1. **Trains** the LSTM model with latest data
-2. **Versions** the model with incremental numbering
-3. **Uploads** to S3 with meaningful folder names
-4. **Registers** in MLflow model registry
-5. **Verifies** deployment success
-
-### S3 Organization
-
-```
-s3://your-bucket/group6-capstone/
-├── openstack-rca-system-prod_0001/
-│   └── models/lstm_model_v1.keras
-├── openstack-rca-system-prod_0002/
-│   └── models/lstm_model_v2.keras
-└── openstack-rca-system-prod_vXXX/
-    └── models/lstm_model_vXXX.keras
+#### **Staging (Balanced)**
+```yaml
+EC2_INSTANCE_TYPE: 't3.small'    # $14.63/month
+EC2_VOLUME_SIZE: '30'            # 30 GB
+EC2_VOLUME_TYPE: 'gp3'           # General Purpose
 ```
 
-### Model Verification
-
-```python
-# Verify model deployment
-from mlflow_integration.mlflow_manager import MLflowManager
-
-mgr = MLflowManager(
-    tracking_uri=Config.MLFLOW_TRACKING_URI,
-    experiment_name='openstack_rca_system_staging'
-)
-
-if mgr.is_enabled:
-    model = mgr.load_model_with_versioning(
-        model_name='lstm_model', 
-        version='latest'
-    )
-    if model:
-        print('✅ Model successfully deployed')
+#### **Production (Performance)**
+```yaml
+EC2_INSTANCE_TYPE: 't3.medium'   # $29.25/month
+EC2_VOLUME_SIZE: '50'            # 50 GB
+EC2_VOLUME_TYPE: 'gp3'           # General Purpose
 ```
 
-## 🐳 Docker Integration
+#### **Available Instance Types**
+```yaml
+# T2/T3 Series (Burstable Performance)
+EC2_INSTANCE_TYPE: 't2.micro'    # 1 vCPU, 1 GB RAM
+EC2_INSTANCE_TYPE: 't2.small'    # 1 vCPU, 2 GB RAM
+EC2_INSTANCE_TYPE: 't3.small'    # 2 vCPU, 2 GB RAM
+EC2_INSTANCE_TYPE: 't3.medium'   # 2 vCPU, 4 GB RAM
+EC2_INSTANCE_TYPE: 't3.large'    # 2 vCPU, 8 GB RAM
 
-### Build Process
-
-1. **Multi-stage build** for optimized image size
-2. **Dependency caching** for faster builds
-3. **Health checks** for container validation
-4. **Environment variable** injection
-
-### Image Testing
-
-```bash
-# Build image
-python utils/docker_build_deploy.py
-
-# Test container
-docker run --rm -d --name test-container -p 7051:7051 \
-  -e ANTHROPIC_API_KEY=your_key \
-  your-username/openstack-rca-system:latest
-
-# Health check
-curl -f http://localhost:7051/_stcore/health
-
-# Stop container
-docker stop test-container
+# M5/M6 Series (General Purpose)
+EC2_INSTANCE_TYPE: 'm5.large'    # 2 vCPU, 8 GB RAM
+EC2_INSTANCE_TYPE: 'm6g.medium'  # 1 vCPU, 4 GB RAM (ARM)
 ```
 
-### Container Features
-
-- **Port 7051**: Streamlit application
-- **Volume mounts**: Data persistence
-- **Health endpoint**: `/_stcore/health`
-- **Auto-restart**: Unless-stopped policy
-- **Resource limits**: Configurable CPU/memory
-
-## ☁️ AWS ECS Deployment (Future)
-
-### Planned Implementation
-
-1. **ECS Cluster Creation**
-   ```bash
-   aws ecs create-cluster --cluster-name openstack-rca-cluster
-   ```
-
-2. **Task Definition**
-   ```json
-   {
-     "family": "openstack-rca-task",
-     "networkMode": "awsvpc",
-     "requiresCompatibilities": ["FARGATE"],
-     "cpu": "1024",
-     "memory": "2048",
-     "executionRoleArn": "arn:aws:iam::account:role/ecsTaskExecutionRole"
-   }
-   ```
-
-3. **Service Creation**
-   ```bash
-   aws ecs create-service \
-     --cluster openstack-rca-cluster \
-     --service-name openstack-rca-service \
-     --task-definition openstack-rca-task
-   ```
-
-### Deployment Strategy
-
-- **Blue-Green Deployment**: Zero-downtime updates
-- **Auto-scaling**: Based on CPU/memory usage
-- **Load balancing**: Application Load Balancer
-- **Health monitoring**: CloudWatch integration
-
-## 🔍 Monitoring & Observability
-
-### Pipeline Metrics
-
-- **Build time**: Target < 15 minutes
-- **Test coverage**: Minimum 80%
-- **Model accuracy**: Minimum 85%
-- **Deployment success rate**: Target 99%
-
-### Logging
-
-- **GitHub Actions**: Step-by-step execution logs
-- **MLflow**: Training metrics and artifacts
-- **Docker**: Container build and runtime logs
-- **AWS CloudWatch**: ECS service logs (future)
-
-### Alerts
-
-- **Pipeline failures**: Immediate notification
-- **Test coverage drops**: Warning threshold
-- **Model performance degradation**: Alert on accuracy < 80%
-- **Deployment issues**: Service health monitoring
-
-## 🛠️ Local Development
-
-### Running Pipeline Locally
-
-```bash
-# 1. Run tests
-python -m pytest tests/ -v --cov=. --cov-report=html
-
-# 2. Train model
-python main.py --mode train --enable-mlflow
-
-# 3. Build Docker image
-python utils/docker_build_deploy.py
-
-# 4. Test container
-docker run --rm -p 7051:7051 your-username/openstack-rca-system:latest
+#### **Available Volume Types**
+```yaml
+EC2_VOLUME_TYPE: 'gp3'    # General Purpose SSD (recommended)
+EC2_VOLUME_TYPE: 'gp2'    # General Purpose SSD (legacy)
+EC2_VOLUME_TYPE: 'io1'    # Provisioned IOPS SSD (high performance)
+EC2_VOLUME_TYPE: 'st1'    # Throughput Optimized HDD
+EC2_VOLUME_TYPE: 'sc1'    # Cold HDD (lowest cost)
 ```
 
-### Development Workflow
+## 🌿 Branch-Specific Behavior
 
-1. **Feature Branch**: Create feature branch from `develop`
-2. **Local Testing**: Run tests and model training locally
-3. **Push Changes**: Push to feature branch
-4. **Pull Request**: Create PR to `develop` branch
-5. **CI Validation**: Automated testing and validation
-6. **Merge**: Merge to `develop` after approval
-7. **Release**: Merge `develop` to `main` for deployment
+### **Main Branch** (`main`)
+- ✅ All stages run (Train → Test → Docker → Deploy)
+- ✅ Full production deployment to ECS/EC2
+- ✅ Complete CI/CD pipeline execution
 
-## 🚨 Troubleshooting
+### **Deploy Branch** (`deploy`)
+- ✅ All stages run (Train → Test → Docker → Deploy)
+- ✅ Full production deployment to ECS/EC2
+- ✅ Complete CI/CD pipeline execution
+- ✅ **Fixed**: Previously skipped EC2 deployment, now runs correctly
 
-### Common Issues
+### **Other Branches**
+- ✅ Stages 1-3 run (Train → Test → Docker)
+- ❌ Stage 4 skipped (no deployment)
+- 🔄 Development workflow only
 
-#### Pipeline Failures
-```bash
-# Check GitHub Actions logs
-# Visit: https://github.com/your-repo/actions
+## 🔧 Recent Fixes
 
-# Run failing step locally
-python -m pytest tests/test_inference.py -v
-```
-
-#### Model Deployment Issues
-```bash
-# Verify MLflow connection
-python -c "import mlflow; print(mlflow.get_tracking_uri())"
-
-# Check S3 access
-aws s3 ls s3://your-bucket/group6-capstone/
-
-# Test model loading
-python -c "
-from mlflow_integration.mlflow_manager import MLflowManager
-mgr = MLflowManager()
-model = mgr.load_model_with_versioning('lstm_model', 'latest')
-print('Model loaded:', model is not None)
-"
-```
-
-#### Docker Build Issues
-```bash
-# Check Docker daemon
-docker info
-
-# Build with verbose output
-python utils/docker_build_deploy.py --verbose
-
-# Test Docker image locally
-docker build -t test-image .
-docker run --rm test-image python -c "print('Image works')"
-```
-
-### Debug Commands
-
-```bash
-# Check environment variables
-env | grep -E "(MLFLOW|AWS|DOCKER)"
-
-# Verify dependencies
-python -c "import tensorflow, mlflow, streamlit; print('All OK')"
-
-# Test MLflow connectivity
-python -c "
-import mlflow
-mlflow.set_tracking_uri('your-mlflow-uri')
-print('Connected to:', mlflow.get_tracking_uri())
-"
-```
-
-## 📈 Performance Optimization
-
-### Build Optimization
-
-- **Docker layer caching**: Reuse cached layers
-- **Multi-stage builds**: Reduce final image size
-- **Dependency caching**: Cache pip packages
-- **Parallel execution**: Run independent jobs in parallel
-
-### Test Optimization
-
-- **Test parallelization**: Run tests in parallel
-- **Selective testing**: Only run affected tests
-- **Caching**: Cache test artifacts
-- **Incremental builds**: Skip unchanged components
-
-### Deployment Optimization
-
-- **Blue-green deployment**: Zero-downtime updates
-- **Rolling updates**: Gradual service replacement
-- **Health checks**: Fast failure detection
-- **Auto-scaling**: Dynamic resource allocation
-
-## 🔄 Future Enhancements
-
-### Planned Features
-
-1. **Docker Hub Integration**
-   - Automated image pushing
-   - Version tagging
-   - Security scanning
-
-2. **ECS Deployment**
-   - Complete AWS ECS integration
-   - Load balancer configuration
-   - Auto-scaling policies
-
-3. **Advanced Monitoring**
-   - Prometheus metrics
-   - Grafana dashboards
-   - Custom alerts
-
-4. **Security Scanning**
-   - Container vulnerability scanning
-   - Dependency security checks
-   - Secrets management
-
-5. **Multi-environment Support**
-   - Staging environment
-   - Production environment
-   - Environment-specific configurations
-
-This CI/CD pipeline provides a robust foundation for automated development, testing, and deployment of the OpenStack RCA System. 
+### **EC2 Deployment Branch Fix** ✅
+- **Issue**: EC2 deployment step was skipped on `deploy` branch
+- **Problem**: Job condition was `if: github.ref == 'refs/heads/main'` only
+- **Solution**: Updated to `if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy'`
+- **Impact**: EC2 deployment now runs on both `main` and `deploy` branches 

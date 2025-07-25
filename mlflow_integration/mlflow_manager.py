@@ -7,9 +7,16 @@ This module provides streamlined MLflow integration with single keras upload and
 import os
 import logging
 import json
+import tempfile
 from typing import Dict, Any, Optional, Union, List
 from pathlib import Path
 from datetime import datetime
+
+try:
+    import boto3
+    BOTO3_AVAILABLE = True
+except ImportError:
+    BOTO3_AVAILABLE = False
 
 try:
     import mlflow
@@ -69,7 +76,7 @@ class MLflowManager:
                         os.environ['MLFLOW_S3_ENDPOINT_URL'] = mlflow_config['s3_endpoint_url']
                     logger.info("AWS credentials configured for S3 artifact storage")
             
-            self.client = MlflowClient()
+                self.client = MlflowClient()
             
             # Set or create experiment
             experiment = mlflow.get_experiment_by_name(experiment_name)
@@ -133,6 +140,10 @@ class MLflowManager:
                     )
                     logger.info(f"✅ Created new MLflow experiment: {experiment_name} (ID: {experiment_id})")
                     mlflow.set_experiment(experiment_name)
+                except Exception as create_error:
+                    logger.error(f"❌ Failed to create experiment as fallback: {create_error}")
+                    self.enable_mlflow = False
+                    return
                 
         except Exception as e:
             logger.error(f"Failed to initialize MLflow: {e}")
@@ -304,9 +315,8 @@ class MLflowManager:
                     
                     # Clean up temp file
                     os.remove(keras_path)
-                    os.rmdir(temp_dir)
-            
-                    return model_version                                    
+                    os.rmdir(temp_dir)        
+                    return model_version
                 except Exception as reg_error:
                     logger.error(f"❌ Model registration failed: {reg_error}")
                     # Clean up temp file
@@ -329,7 +339,7 @@ class MLflowManager:
         except Exception as e:
             logger.error(f"Failed to log model: {e}")
             return None
-
+    
     def load_model_with_versioning(self, 
                    model_name: str = "lstm_model", 
                                    version: Union[str, int] = "latest",
@@ -350,6 +360,10 @@ class MLflowManager:
     def _load_latest_model_from_meaningful_folders(self):
         """Load the latest model from meaningful S3 folder names"""
         try:
+            if not BOTO3_AVAILABLE:
+                logger.error("❌ boto3 not available for S3 operations")
+                return None
+                
             import boto3
             import tempfile
             import os
@@ -359,94 +373,111 @@ class MLflowManager:
             if not hasattr(Config, 'MLFLOW_CONFIG') or not Config.MLFLOW_CONFIG.get('artifact_root'):
                 logger.error("❌ No S3 configuration found")
                 return None
-                
+            
             base_artifact_uri = Config.MLFLOW_CONFIG['artifact_root']
             if not base_artifact_uri or not base_artifact_uri.startswith('s3://'):
                 logger.error("❌ Not using S3 artifact storage")
                 return None
-        
+            
             # Parse S3 URI
             s3_parts = base_artifact_uri.replace('s3://', '').split('/', 1)
             bucket_name = s3_parts[0]
             s3_prefix = s3_parts[1] if len(s3_parts) > 1 else ''
             
             logger.info(f"🔍 Searching for latest model in S3 bucket: {bucket_name}")
-            
+                        
             # Initialize S3 client
             s3_client = boto3.client('s3')
-            
-            # List all folders matching the meaningful pattern (use dynamic environment name)
-            environment = self.experiment_name.split('_')[-1] if '_' in self.experiment_name else 'staging'
-            folder_pattern = f"openstack-rca-system-{environment}_"
-            prefix_pattern = f"{s3_prefix}/{folder_pattern}" if s3_prefix else folder_pattern
-            
+                        
+            # List all objects in the prefix to find model files
             response = s3_client.list_objects_v2(
-                Bucket=bucket_name,
-                Prefix=prefix_pattern.strip('/'),
-                Delimiter='/'
-            )
-            
-            if 'CommonPrefixes' not in response:
-                logger.error("❌ No model folders found in S3")
+            Bucket=bucket_name,
+            Prefix=s3_prefix,
+            MaxKeys=1000  # Get more objects to find all models
+                            )
+                            
+            if 'Contents' not in response:
+                logger.error("❌ No objects found in S3")
                 return None
             
-            # Find the latest version folder
-            latest_folder = None
+            # Find all .keras model files
+            keras_files = []
+            for obj in response['Contents']:
+                if obj['Key'].endswith('.keras'):
+                    keras_files.append(obj['Key'])
+            
+            if not keras_files:
+                logger.error("❌ No .keras model files found in S3")
+                return None
+            
+            logger.info(f"📦 Found {len(keras_files)} model files in S3")
+            
+            # Find the latest version by extracting version numbers from file paths
+            latest_file = None
             latest_version = 0
             
-            for prefix_info in response['CommonPrefixes']:
-                folder_name = prefix_info['Prefix'].rstrip('/')
-                folder_basename = folder_name.split('/')[-1]
+            for file_key in keras_files:
+                # Extract version from path like: group6-capstone/openstack-rca-system-prod_0007/models/lstm_model_v7.keras
+                path_parts = file_key.split('/')
                 
-                # Extract version number from folder name (e.g., openstack-rca-system-staging_0016, openstack-rca-system-production_0016)
-                if folder_basename.startswith(folder_pattern):
+                # Look for version pattern in the path
+                for part in path_parts:
+                    if part.startswith('openstack-rca-system-') and '_' in part:
+                        try:
+                            # Extract version number from part like "openstack-rca-system-prod_0007"
+                            version_str = part.split('_')[-1]
+                            version = int(version_str)
+                            if version > latest_version:
+                                latest_version = version
+                                latest_file = file_key
+                        except ValueError:
+                            continue
+                
+                # Also check if the file itself has a version number
+                if 'lstm_model_v' in file_key:
                     try:
-                        version_str = folder_basename.split('_')[-1]
-                        version = int(version_str)
-                        if version > latest_version:
-                            latest_version = version
-                            latest_folder = folder_name
+                        # Extract version from filename like "lstm_model_v7.keras"
+                        filename = file_key.split('/')[-1]
+                        if filename.startswith('lstm_model_v'):
+                            version_str = filename.replace('lstm_model_v', '').replace('.keras', '')
+                            version = int(version_str)
+                            if version > latest_version:
+                                latest_version = version
+                                latest_file = file_key
                     except ValueError:
                         continue
             
-            if not latest_folder:
-                logger.error("❌ No valid versioned model folders found")
-                return None
+            if not latest_file:
+                # If no version found, use the first .keras file
+                latest_file = keras_files[0]
+                logger.info(f"📦 No version found, using first model file: {latest_file}")
+            else:
+                logger.info(f"📦 Found latest model file: {latest_file} (version {latest_version})")
             
-            logger.info(f"📦 Found latest model folder: {latest_folder} (version {latest_version})")
-            
-            # Find the keras model file in the latest folder
-            model_prefix = f"{latest_folder}/models/"
-            model_response = s3_client.list_objects_v2(
-                Bucket=bucket_name,
-                Prefix=model_prefix
-            )
-            
-            keras_file = None
-            if 'Contents' in model_response:
-                for obj in model_response['Contents']:
-                    if obj['Key'].endswith('.keras'):
-                        keras_file = obj['Key']
-                        break
-            
-            if not keras_file:
-                logger.error("❌ No .keras model file found in S3")
-                return None
-            
-            logger.info(f"⬇️ Downloading model from meaningful folder: {keras_file}")
+            logger.info(f"⬇️ Downloading model: {latest_file}")
             
             # Download the model to a temporary file
             temp_dir = tempfile.mkdtemp()
             local_model_path = os.path.join(temp_dir, 'model.keras')
             
-            s3_client.download_file(bucket_name, keras_file, local_model_path)
+            s3_client.download_file(bucket_name, latest_file, local_model_path)
             logger.info(f"✅ Model downloaded to: {local_model_path}")
             
             # Load the model
             try:
-                import tensorflow as tf
-                model = tf.keras.models.load_model(local_model_path)
-                logger.info("🎯 Model loaded successfully from meaningful S3 folder")
+                # Set environment variables for compatibility
+                os.environ['TF_USE_LEGACY_KERAS'] = '1'
+                os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # Disable GPU
+                
+                # Try tf-keras first, then fallback to tensorflow.keras
+                try:
+                    import tf_keras as keras
+                    model = keras.models.load_model(local_model_path)
+                    logger.info("🎯 Model loaded successfully from S3 using tf-keras")
+                except ImportError:
+                    import tensorflow as tf
+                    model = tf.keras.models.load_model(local_model_path)
+                    logger.info("🎯 Model loaded successfully from S3 using tensorflow.keras")
                 
                 # Clean up temp file
                 try:
@@ -468,7 +499,7 @@ class MLflowManager:
                 return None
             
         except Exception as e:
-            logger.error(f"❌ Meaningful folder model download failed: {e}")
+            logger.error(f"❌ S3 model download failed: {e}")
             return None
     
     @property
@@ -480,7 +511,7 @@ class MLflowManager:
     def tracking_uri(self) -> Optional[str]:
         """Get current tracking URI"""
         return mlflow.get_tracking_uri() if self.enable_mlflow else None
-
+    
     def get_run_info(self) -> Optional[Dict[str, Any]]:
         """Get information about the current run"""
         if not self.enable_mlflow or not self.active_run:
