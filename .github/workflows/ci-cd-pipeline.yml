@@ -423,7 +423,7 @@ jobs:
           -e ENVIRONMENT=production \
           -e TF_USE_LEGACY_KERAS=1 \
           -e CUDA_VISIBLE_DEVICES=-1 \
-          openstack-rca-system:latest
+          chandantech/openstack-rca-system:latest
         
         echo "⏳ Waiting for container to start..."
         sleep 30
