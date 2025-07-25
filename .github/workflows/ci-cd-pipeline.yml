@@ -396,7 +396,7 @@ jobs:
     - name: Build and test Docker image
       run: |
         echo "🐳 Building Docker image..."
-        docker build -t chandantech/openstack-rca-system:latest .
+        docker build -t ${{ env.DOCKER_IMAGE_URI }} .
         
         # Create .env file for Docker test
         cat > .env << EOF
@@ -423,7 +423,7 @@ jobs:
           -e ENVIRONMENT=production \
           -e TF_USE_LEGACY_KERAS=1 \
           -e CUDA_VISIBLE_DEVICES=-1 \
-          chandantech/openstack-rca-system:latest
+          ${{ env.DOCKER_IMAGE_URI }}
         
         echo "⏳ Waiting for container to start..."
         sleep 30
@@ -439,7 +439,7 @@ jobs:
     - name: Push Docker image
       run: |
         echo "📤 Pushing Docker image to Docker Hub..."        
-        docker push chandantech/openstack-rca-system:latest
+        docker push ${{ env.DOCKER_IMAGE_URI }}
         
         echo "✅ Docker image pushed successfully"
         
@@ -475,7 +475,7 @@ jobs:
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy'
     
     env:
-      CONTAINER_NAME: openstack-rca-container
+      CONTAINER_NAME: openstack-rca
       CONTAINER_PORT: 7051    
     steps:
     - name: Configure AWS credentials
