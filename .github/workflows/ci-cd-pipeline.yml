@@ -10,6 +10,7 @@ env:
   PYTHON_VERSION: '3.10'
   MLFLOW_EXPERIMENT_NAME: 'openstack_rca_system_prod'
   DOCKER_IMAGE: 'openstack-rca-system'
+  DOCKER_IMAGE_URI: 'chandantech/openstack-rca-system:latest'
   ECS_CLUSTER: 'openstack-rca-cluster'
   ECS_SERVICE: 'openstack-rca-service'
   EC2_INSTANCE_TYPE: 't2.micro'
@@ -17,456 +18,456 @@ env:
   EC2_VOLUME_SIZE: '30'
   EC2_VOLUME_TYPE: 'gp3'
   SSH_KEY_PATH: ~/.ssh/mlopskey
-  SSH_USER: ec2-user
-
+  SSH_USER: ubuntu
+  
 jobs:
-  # train-and-mlflow:
-  #   name: Train Model & MLflow Integration
-  #   runs-on: ubuntu-latest
+  train-and-mlflow:
+    name: Train Model & MLflow Integration
+    runs-on: ubuntu-latest
     
-  #   steps:
-  #   - name: Checkout code
-  #     uses: actions/checkout@v4
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
       
-  #   - name: Set up Python ${{ env.PYTHON_VERSION }}
-  #     uses: actions/setup-python@v4
-  #     with:
-  #       python-version: ${{ env.PYTHON_VERSION }}
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
         
-  #   - name: Install training dependencies
-  #     run: |
-  #       python -m pip install --upgrade pip
-  #       pip install -r requirements-base.txt
-  #       pip install -r requirements-mlflow.txt        
+    - name: Install training dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-base.txt
+        pip install -r requirements-mlflow.txt        
         
-  #   - name: Download NLTK data
-  #     run: |
-  #       python -c "
-  #       import nltk
-  #       nltk.download('punkt')
-  #       nltk.download('stopwords')
-  #       nltk.download('wordnet')
-  #       print('✅ NLTK data downloaded successfully')
-  #       "
+    - name: Download NLTK data
+      run: |
+        python -c "
+        import nltk
+        nltk.download('punkt')
+        nltk.download('stopwords')
+        nltk.download('wordnet')
+        print('✅ NLTK data downloaded successfully')
+        "
         
-  #   - name: Configure AWS credentials
-  #     uses: aws-actions/configure-aws-credentials@v4
-  #     with:
-  #       aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #       aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #       aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
         
-  #   - name: Set up environment variables
-  #     run: |
-  #       echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> $GITHUB_ENV
-  #       echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> $GITHUB_ENV
-  #       echo "MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }}" >> $GITHUB_ENV
-  #       echo "MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }}" >> $GITHUB_ENV
-  #       echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
-  #       echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
-  #       echo "AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}" >> $GITHUB_ENV
-  #       # Disable CUDA/GPU for CI/CD
-  #       echo "CUDA_VISIBLE_DEVICES=-1" >> $GITHUB_ENV
-  #       echo "TF_CPP_MIN_LOG_LEVEL=2" >> $GITHUB_ENV
-  #       echo "TF_USE_LEGACY_KERAS=1" >> $GITHUB_ENV
+    - name: Set up environment variables
+      run: |
+        echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> $GITHUB_ENV
+        echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> $GITHUB_ENV
+        echo "MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }}" >> $GITHUB_ENV
+        echo "MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }}" >> $GITHUB_ENV
+        echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+        echo "AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}" >> $GITHUB_ENV
+        # Disable CUDA/GPU for CI/CD
+        echo "CUDA_VISIBLE_DEVICES=-1" >> $GITHUB_ENV
+        echo "TF_CPP_MIN_LOG_LEVEL=2" >> $GITHUB_ENV
+        echo "TF_USE_LEGACY_KERAS=1" >> $GITHUB_ENV
         
-  #   - name: Setup MLflow experiment
-  #     run: |
-  #       echo "🔧 Setting up MLflow experiment: ${{ env.MLFLOW_EXPERIMENT_NAME }}"
-  #       python -c "
-  #       from mlflow_integration.mlflow_manager import MLflowManager
-  #       from config.config import Config
+    - name: Setup MLflow experiment
+      run: |
+        echo "🔧 Setting up MLflow experiment: ${{ env.MLFLOW_EXPERIMENT_NAME }}"
+        python -c "
+        from mlflow_integration.mlflow_manager import MLflowManager
+        from config.config import Config
         
-  #       # Initialize MLflow manager to ensure experiment is created/restored
-  #       mgr = MLflowManager(
-  #           tracking_uri=Config.MLFLOW_TRACKING_URI,
-  #           experiment_name='${{ env.MLFLOW_EXPERIMENT_NAME }}'
-  #       )
+        # Initialize MLflow manager to ensure experiment is created/restored
+        mgr = MLflowManager(
+            tracking_uri=Config.MLFLOW_TRACKING_URI,
+            experiment_name='${{ env.MLFLOW_EXPERIMENT_NAME }}'
+        )
         
-  #       if mgr.is_enabled:
-  #           print(f'✅ MLflow experiment setup complete: ${{ env.MLFLOW_EXPERIMENT_NAME }}')
-  #       else:
-  #           print('⚠️ MLflow not enabled, will proceed with local training')
-  #       "
+        if mgr.is_enabled:
+            print(f'✅ MLflow experiment setup complete: ${{ env.MLFLOW_EXPERIMENT_NAME }}')
+        else:
+            print('⚠️ MLflow not enabled, will proceed with local training')
+        "
         
-  #   - name: Train model and deploy to MLflow/S3
-  #     run: |
-  #       # Train the model and deploy to MLflow/S3
-  #       python main.py --mode train --enable-mlflow --mlflow-experiment ${{ env.MLFLOW_EXPERIMENT_NAME }}
+    - name: Train model and deploy to MLflow/S3
+      run: |
+        # Train the model and deploy to MLflow/S3
+        python main.py --mode train --enable-mlflow --mlflow-experiment ${{ env.MLFLOW_EXPERIMENT_NAME }}
         
-  #       # Verify model deployment
-  #       python -c "
-  #       from mlflow_integration.mlflow_manager import MLflowManager
-  #       from config.config import Config
+        # Verify model deployment
+        python -c "
+        from mlflow_integration.mlflow_manager import MLflowManager
+        from config.config import Config
         
-  #       mgr = MLflowManager(
-  #           tracking_uri=Config.MLFLOW_TRACKING_URI,
-  #           experiment_name='${{ env.MLFLOW_EXPERIMENT_NAME }}'
-  #       )
+        mgr = MLflowManager(
+            tracking_uri=Config.MLFLOW_TRACKING_URI,
+            experiment_name='${{ env.MLFLOW_EXPERIMENT_NAME }}'
+        )
         
-  #       if mgr.is_enabled:
-  #           model = mgr.load_model_with_versioning(model_name='lstm_model', version='latest')
-  #           if model:
-  #               print('✅ Model successfully deployed to MLflow & S3')
-  #           else:
-  #               print('❌ Model deployment verification failed')
-  #               exit(1)
-  #       else:
-  #           print('❌ MLflow not enabled')
-  #           exit(1)
-  #       "
+        if mgr.is_enabled:
+            model = mgr.load_model_with_versioning(model_name='lstm_model', version='latest')
+            if model:
+                print('✅ Model successfully deployed to MLflow & S3')
+            else:
+                print('❌ Model deployment verification failed')
+                exit(1)
+        else:
+            print('❌ MLflow not enabled')
+            exit(1)
+        "
         
-  #       # Log deployment info
-  #       echo "🚀 Model deployed to MLflow experiment: ${{ env.MLFLOW_EXPERIMENT_NAME }}"
-  #       echo "📦 S3 location: ${{ secrets.MLFLOW_ARTIFACT_ROOT }}"
-  #       echo "🔗 MLflow URI: ${{ secrets.MLFLOW_TRACKING_URI }}"
+        # Log deployment info
+        echo "🚀 Model deployed to MLflow experiment: ${{ env.MLFLOW_EXPERIMENT_NAME }}"
+        echo "📦 S3 location: ${{ secrets.MLFLOW_ARTIFACT_ROOT }}"
+        echo "🔗 MLflow URI: ${{ secrets.MLFLOW_TRACKING_URI }}"
         
-  #   - name: Upload MLflow artifacts
-  #     uses: actions/upload-artifact@v4
-  #     with:
-  #       name: mlflow-artifacts
-  #       path: |
-  #         mlflow-artifacts/
-  #         models/
-  #         logs/
-  #       retention-days: 7
+    - name: Upload MLflow artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: mlflow-artifacts
+        path: |
+          mlflow-artifacts/
+          models/
+          logs/
+        retention-days: 7
         
-  #   - name: Create training summary
-  #     run: |
-  #       echo "## 🤖 Training & MLflow Summary" >> $GITHUB_STEP_SUMMARY
-  #       echo "" >> $GITHUB_STEP_SUMMARY
-  #       echo "### ✅ Completed:" >> $GITHUB_STEP_SUMMARY
-  #       echo "- Model training completed" >> $GITHUB_STEP_SUMMARY
-  #       echo "- Model logged to MLflow" >> $GITHUB_STEP_SUMMARY
-  #       echo "- Model deployed to S3" >> $GITHUB_STEP_SUMMARY
-  #       echo "" >> $GITHUB_STEP_SUMMARY
-  #       echo "### 📊 Artifacts:" >> $GITHUB_STEP_SUMMARY
-  #       echo "- MLflow Experiment: ${{ env.MLFLOW_EXPERIMENT_NAME }}" >> $GITHUB_STEP_SUMMARY
-  #       echo "- S3 Location: ${{ secrets.MLFLOW_ARTIFACT_ROOT }}" >> $GITHUB_STEP_SUMMARY
-  #       echo "- Model Version: Latest" >> $GITHUB_STEP_SUMMARY
+    - name: Create training summary
+      run: |
+        echo "## 🤖 Training & MLflow Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Completed:" >> $GITHUB_STEP_SUMMARY
+        echo "- Model training completed" >> $GITHUB_STEP_SUMMARY
+        echo "- Model logged to MLflow" >> $GITHUB_STEP_SUMMARY
+        echo "- Model deployed to S3" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Artifacts:" >> $GITHUB_STEP_SUMMARY
+        echo "- MLflow Experiment: ${{ env.MLFLOW_EXPERIMENT_NAME }}" >> $GITHUB_STEP_SUMMARY
+        echo "- S3 Location: ${{ secrets.MLFLOW_ARTIFACT_ROOT }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Model Version: Latest" >> $GITHUB_STEP_SUMMARY
 
-  # test-rca-rag:
-  #   name: Test RCA & RAG Evaluation
-  #   needs: train-and-mlflow
-  #   runs-on: ubuntu-latest
+  test-rca-rag:
+    name: Test RCA & RAG Evaluation
+    needs: train-and-mlflow
+    runs-on: ubuntu-latest
     
-  #   steps:
-  #   - name: Checkout code
-  #     uses: actions/checkout@v4
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
       
-  #   - name: Set up Python ${{ env.PYTHON_VERSION }}
-  #     uses: actions/setup-python@v4
-  #     with:
-  #       python-version: ${{ env.PYTHON_VERSION }}
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
         
-  #   - name: Install test dependencies
-  #     run: |
-  #       python -m pip install --upgrade pip
-  #       pip install -r requirements-test.txt
+    - name: Install test dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-test.txt
         
-  #   - name: Download NLTK data
-  #     run: |
-  #       python -c "
-  #       import nltk
-  #       nltk.download('punkt')
-  #       nltk.download('stopwords')
-  #       nltk.download('wordnet')
-  #       print('✅ NLTK data downloaded successfully')
-  #       "
+    - name: Download NLTK data
+      run: |
+        python -c "
+        import nltk
+        nltk.download('punkt')
+        nltk.download('stopwords')
+        nltk.download('wordnet')
+        print('✅ NLTK data downloaded successfully')
+        "
         
-  #   - name: Download MLflow artifacts
-  #     uses: actions/download-artifact@v4
-  #     with:
-  #       name: mlflow-artifacts
-  #       path: ./
+    - name: Download MLflow artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: mlflow-artifacts
+        path: ./
         
-  #   - name: Set up environment variables for tests
-  #     run: |
-  #       echo "🔧 Setting up environment variables for tests..."
-  #       echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> $GITHUB_ENV
-  #       echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> $GITHUB_ENV
-  #       echo "MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }}" >> $GITHUB_ENV
-  #       echo "MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }}" >> $GITHUB_ENV
-  #       echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
-  #       echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
-  #       echo "AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}" >> $GITHUB_ENV
+    - name: Set up environment variables for tests
+      run: |
+        echo "🔧 Setting up environment variables for tests..."
+        echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> $GITHUB_ENV
+        echo "MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}" >> $GITHUB_ENV
+        echo "MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }}" >> $GITHUB_ENV
+        echo "MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }}" >> $GITHUB_ENV
+        echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+        echo "AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}" >> $GITHUB_ENV
         
-  #   - name: Run basic artifact tests      
-  #     run: |
-  #       echo "🧪 Running basic artifact tests..."
-  #       python -m pytest tests/test_artifacts.py -v || echo "⚠️ Basic artifact tests failed, continuing..."
+    - name: Run basic artifact tests      
+      run: |
+        echo "🧪 Running basic artifact tests..."
+        python -m pytest tests/test_artifacts.py -v || echo "⚠️ Basic artifact tests failed, continuing..."
         
-  #   - name: Run RCA evaluation tests      
-  #     run: |
-  #       echo "🔍 Running RCA evaluation tests..."
-  #       python -m pytest tests/test_rca_evaluation.py -v || echo "⚠️ RCA evaluation tests failed, continuing..."
+    - name: Run RCA evaluation tests      
+      run: |
+        echo "🔍 Running RCA evaluation tests..."
+        python -m pytest tests/test_rca_evaluation.py -v || echo "⚠️ RCA evaluation tests failed, continuing..."
         
-  #   - name: Run RAG evaluation script           
-  #     run: |
-  #       # Create .env file with secrets for RAG evaluation
-  #       cat > .env << EOF
-  #       ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
-  #       MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}
-  #       MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }}
-  #       MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }}
-  #       AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-  #       AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #       AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}
-  #       EOF
+    - name: Run RAG evaluation script           
+      run: |
+        # Create .env file with secrets for RAG evaluation
+        cat > .env << EOF
+        ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+        MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}
+        MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }}
+        MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }}
+        AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}
+        EOF
         
-  #       # Run comprehensive RAG evaluation using the runner script
-  #       python tests/run_rag_evaluation.py --output-dir rag_evaluation_results --verbose || echo "⚠️ RAG evaluation failed, continuing..."
+        # Run comprehensive RAG evaluation using the runner script
+        python tests/run_rag_evaluation.py --output-dir rag_evaluation_results --verbose || echo "⚠️ RAG evaluation failed, continuing..."
         
-  #   - name: Run integration tests        
-  #     run: |
-  #       # Create .env file with secrets for integration tests
-  #       cat > .env << EOF
-  #       ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
-  #       MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}
-  #       MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }}
-  #       MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }}
-  #       AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-  #       AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #       AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}
-  #       EOF
+    - name: Run integration tests        
+      run: |
+        # Create .env file with secrets for integration tests
+        cat > .env << EOF
+        ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+        MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}
+        MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }}
+        MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }}
+        AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}
+        EOF
         
-  #       # Run model performance tests
-  #       python main.py --mode test-ml-model --custom-query "Database connection timeout" --iterations 1 || echo "⚠️ Integration tests failed, continuing..."
+        # Run model performance tests
+        python main.py --mode test-ml-model --custom-query "Database connection timeout" --iterations 1 || echo "⚠️ Integration tests failed, continuing..."
         
-  #   - name: Collect test results summary      
-  #     run: |
-  #       echo "📋 Collecting test results summary..."
+    - name: Collect test results summary      
+      run: |
+        echo "📋 Collecting test results summary..."
         
-  #       # Create a summary file
-  #       cat > test_results_summary.md << EOF
-  #       # Test Results Summary
+        # Create a summary file
+        cat > test_results_summary.md << EOF
+        # Test Results Summary
         
-  #       ## Test Status
+        ## Test Status
         
-  #       ### Basic Artifact Tests
-  #       - Status: Completed
-  #       - Command: \`python -m pytest tests/test_artifacts.py -v\`
+        ### Basic Artifact Tests
+        - Status: Completed
+        - Command: \`python -m pytest tests/test_artifacts.py -v\`
         
-  #       ### RCA Evaluation Tests  
-  #       - Status: Completed 
-  #       - Command: \`python -m pytest tests/test_rca_evaluation.py -v\`
+        ### RCA Evaluation Tests  
+        - Status: Completed 
+        - Command: \`python -m pytest tests/test_rca_evaluation.py -v\`
         
-  #       ### RAG Evaluation
-  #       - Status: Completed 
-  #       - Command: \`python tests/run_rag_evaluation.py --output-dir rag_evaluation_results --verbose\`
+        ### RAG Evaluation
+        - Status: Completed 
+        - Command: \`python tests/run_rag_evaluation.py --output-dir rag_evaluation_results --verbose\`
         
-  #       ### Integration Tests
-  #       - Status: Completed
-  #       - Command: \`python main.py --mode test-ml-model --custom-query "Database connection timeout" --iterations 2\`
+        ### Integration Tests
+        - Status: Completed
+        - Command: \`python main.py --mode test-ml-model --custom-query "Database connection timeout" --iterations 2\`
         
-  #       ## Pipeline Configuration
-  #       - **Purpose**: Development and debugging workflow
+        ## Pipeline Configuration
+        - **Purpose**: Development and debugging workflow
         
-  #       ## Next Steps
-  #       - Docker image will be built and pushed
-  #       - ECS deployment will proceed
-  #       - Check individual test logs for specific failures
-  #       EOF
+        ## Next Steps
+        - Docker image will be built and pushed
+        - ECS deployment will proceed
+        - Check individual test logs for specific failures
+        EOF
         
-  #       echo "✅ Test results summary created"
+        echo "✅ Test results summary created"
         
-  #   - name: Upload test results
-  #     uses: actions/upload-artifact@v4
-  #     with:
-  #       name: test-results
-  #       path: |
-  #         test-results/
-  #         pytest-results.xml
-  #         coverage.xml
-  #         rag_evaluation_results/
-  #         test_results_summary.md
-  #       retention-days: 7
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: |
+          test-results/
+          pytest-results.xml
+          coverage.xml
+          rag_evaluation_results/
+          test_results_summary.md
+        retention-days: 7
         
-  #   - name: Create test summary
-  #     run: |
-  #       echo "## 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
-  #       echo "" >> $GITHUB_STEP_SUMMARY
-  #       echo "### ✅ Tests Completed:" >> $GITHUB_STEP_SUMMARY
-  #       echo "- Basic artifact tests" >> $GITHUB_STEP_SUMMARY
-  #       echo "- RCA evaluation tests" >> $GITHUB_STEP_SUMMARY
-  #       echo "- RAG evaluation" >> $GITHUB_STEP_SUMMARY
-  #       echo "- Integration tests" >> $GITHUB_STEP_SUMMARY
-  #       echo "" >> $GITHUB_STEP_SUMMARY
-  #       echo "### 📊 Results:" >> $GITHUB_STEP_SUMMARY
-  #       echo "- Test artifacts uploaded" >> $GITHUB_STEP_SUMMARY
-  #       echo "- Coverage reports generated" >> $GITHUB_STEP_SUMMARY
-  #       echo "" >> $GITHUB_STEP_SUMMARY
-  #       echo "### ⚠️ Note:" >> $GITHUB_STEP_SUMMARY        
-  #       echo "- Pipeline will proceed to Docker build and deployment" >> $GITHUB_STEP_SUMMARY
-  #       echo "- Check individual test logs for specific failures" >> $GITHUB_STEP_SUMMARY
+    - name: Create test summary
+      run: |
+        echo "## 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Tests Completed:" >> $GITHUB_STEP_SUMMARY
+        echo "- Basic artifact tests" >> $GITHUB_STEP_SUMMARY
+        echo "- RCA evaluation tests" >> $GITHUB_STEP_SUMMARY
+        echo "- RAG evaluation" >> $GITHUB_STEP_SUMMARY
+        echo "- Integration tests" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Results:" >> $GITHUB_STEP_SUMMARY
+        echo "- Test artifacts uploaded" >> $GITHUB_STEP_SUMMARY
+        echo "- Coverage reports generated" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ⚠️ Note:" >> $GITHUB_STEP_SUMMARY        
+        echo "- Pipeline will proceed to Docker build and deployment" >> $GITHUB_STEP_SUMMARY
+        echo "- Check individual test logs for specific failures" >> $GITHUB_STEP_SUMMARY
 
-  # docker-build-push:
-  #   name: Build Docker Image & Push
-  #   needs: test-rca-rag
-  #   runs-on: ubuntu-latest
+  docker-build-push:
+    name: Build Docker Image & Push
+    needs: test-rca-rag
+    runs-on: ubuntu-latest
     
-  #   steps:
-  #   - name: Checkout code
-  #     uses: actions/checkout@v4
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
       
-  #   - name: Download test artifacts
-  #     uses: actions/download-artifact@v4
-  #     with:
-  #       name: test-results
-  #       path: ./test-results/
+    - name: Download test artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: test-results
+        path: ./test-results/
         
-  #   - name: Check test results status
-  #     continue-on-error: true
-  #     run: |
-  #       echo "📋 Checking test results status..."
+    - name: Check test results status
+      continue-on-error: true
+      run: |
+        echo "📋 Checking test results status..."
         
-  #       if [ -f "./test-results/test_results_summary.md" ]; then
-  #         echo "✅ Test results summary found"
-  #         echo "📄 Test Results Summary:"
-  #         cat ./test-results/test_results_summary.md
-  #       else
-  #         echo "⚠️ No test results summary found - tests may have failed"
-  #       fi
+        if [ -f "./test-results/test_results_summary.md" ]; then
+          echo "✅ Test results summary found"
+          echo "📄 Test Results Summary:"
+          cat ./test-results/test_results_summary.md
+        else
+          echo "⚠️ No test results summary found - tests may have failed"
+        fi
         
-  #       echo ""
-  #       echo "🚀 Proceeding with Docker build and deployment..."        
+        echo ""
+        echo "🚀 Proceeding with Docker build and deployment..."        
         
-  #   - name: Download MLflow artifacts
-  #     uses: actions/download-artifact@v4
-  #     with:
-  #       name: mlflow-artifacts
-  #       path: ./
+    - name: Download MLflow artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: mlflow-artifacts
+        path: ./
         
-  #   - name: Ensure models directory exists
-  #     run: |
-  #       echo "🔧 Ensuring models directory exists for Docker build..."
+    - name: Ensure models directory exists
+      run: |
+        echo "🔧 Ensuring models directory exists for Docker build..."
         
-  #       # Create models directory if it doesn't exist
-  #       mkdir -p models/
+        # Create models directory if it doesn't exist
+        mkdir -p models/
         
-  #       echo "📦 Looking for models in downloaded artifacts..."
-  #       echo "Current directory: $(pwd)"
-  #       echo "Root directory contents:"
-  #       ls -la ./
+        echo "📦 Looking for models in downloaded artifacts..."
+        echo "Current directory: $(pwd)"
+        echo "Root directory contents:"
+        ls -la ./
         
-  #       # Check if models directory exists directly
-  #       if [ -d "./models" ]; then
-  #         echo "✅ Found models directory directly in root"
-  #         echo "📊 Models directory contents:"
-  #         ls -la ./models/
-  #       elif [ -d "./mlflow-artifacts/models" ]; then
-  #         echo "📦 Found models in ./mlflow-artifacts/models/"
-  #         cp -r ./mlflow-artifacts/models/* models/ 2>/dev/null || echo "No models to copy from ./mlflow-artifacts/models/"
-  #         echo "✅ Models copied from ./mlflow-artifacts/models/"
-  #       elif [ -d "./mlflow-artifacts" ]; then
-  #         echo "📦 Looking for model files directly in ./mlflow-artifacts/"
-  #         # Look for common model file extensions including .keras
-  #         find ./mlflow-artifacts/ -name "*.keras" -o -name "*.h5" -o -name "*.pkl" -o -name "*.joblib" -o -name "*.pb" -o -name "*.onnx" 2>/dev/null | head -10
-  #         # Copy any model files found
-  #         find ./mlflow-artifacts/ -name "*.keras" -o -name "*.h5" -o -name "*.pkl" -o -name "*.joblib" -o -name "*.pb" -o -name "*.onnx" 2>/dev/null | xargs -I {} cp {} models/ 2>/dev/null || echo "No model files found to copy"
-  #         echo "✅ Model files copied from ./mlflow-artifacts/"
-  #       else
-  #         echo "⚠️ No models found in artifacts"
-  #       fi
+        # Check if models directory exists directly
+        if [ -d "./models" ]; then
+          echo "✅ Found models directory directly in root"
+          echo "📊 Models directory contents:"
+          ls -la ./models/
+        elif [ -d "./mlflow-artifacts/models" ]; then
+          echo "📦 Found models in ./mlflow-artifacts/models/"
+          cp -r ./mlflow-artifacts/models/* models/ 2>/dev/null || echo "No models to copy from ./mlflow-artifacts/models/"
+          echo "✅ Models copied from ./mlflow-artifacts/models/"
+        elif [ -d "./mlflow-artifacts" ]; then
+          echo "📦 Looking for model files directly in ./mlflow-artifacts/"
+          # Look for common model file extensions including .keras
+          find ./mlflow-artifacts/ -name "*.keras" -o -name "*.h5" -o -name "*.pkl" -o -name "*.joblib" -o -name "*.pb" -o -name "*.onnx" 2>/dev/null | head -10
+          # Copy any model files found
+          find ./mlflow-artifacts/ -name "*.keras" -o -name "*.h5" -o -name "*.pkl" -o -name "*.joblib" -o -name "*.pb" -o -name "*.onnx" 2>/dev/null | xargs -I {} cp {} models/ 2>/dev/null || echo "No model files found to copy"
+          echo "✅ Model files copied from ./mlflow-artifacts/"
+        else
+          echo "⚠️ No models found in artifacts"
+        fi
         
-  #       # Check if models directory has content
-  #       echo "📋 Final models directory contents:"
-  #       ls -la models/ 2>/dev/null || echo "Models directory is empty"
+        # Check if models directory has content
+        echo "📋 Final models directory contents:"
+        ls -la models/ 2>/dev/null || echo "Models directory is empty"
         
-  #       if [ -z "$(ls -A models/ 2>/dev/null)" ]; then
-  #         echo "⚠️ Models directory is empty - creating placeholder"
-  #         echo "# Models will be loaded from MLflow/S3 at runtime" > models/README.md
-  #         echo "✅ Created placeholder models directory"
-  #       else
-  #         echo "✅ Models directory exists with content"
-  #         echo "📊 Models found:"
-  #         ls -la models/
-  #       fi
+        if [ -z "$(ls -A models/ 2>/dev/null)" ]; then
+          echo "⚠️ Models directory is empty - creating placeholder"
+          echo "# Models will be loaded from MLflow/S3 at runtime" > models/README.md
+          echo "✅ Created placeholder models directory"
+        else
+          echo "✅ Models directory exists with content"
+          echo "📊 Models found:"
+          ls -la models/
+        fi
         
-  #   - name: Set up Docker Buildx
-  #     uses: docker/setup-buildx-action@v3
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
       
-  #   - name: Log in to Docker Hub
-  #     uses: docker/login-action@v3
-  #     with:
-  #       username: ${{ secrets.DOCKER_USERNAME }}
-  #       password: ${{ secrets.DOCKER_PASSWORD }}
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
         
-  #   - name: Build and test Docker image
-  #     run: |
-  #       echo "🐳 Building Docker image..."
-  #       docker build -t openstack-rca-system:${{ github.sha }} .
+    - name: Build and test Docker image
+      run: |
+        echo "🐳 Building Docker image..."
+        docker build -t openstack-rca-system:${{ github.sha }} .
         
-  #       # Create .env file for Docker test
-  #       cat > .env << EOF
-  #       ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
-  #       MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}
-  #       MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }}
-  #       MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }}
-  #       AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-  #       AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #       AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}
-  #       EOF
+        # Create .env file for Docker test
+        cat > .env << EOF
+        ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+        MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}
+        MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }}
+        MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }}
+        AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }}
+        EOF
         
-  #       echo "🧪 Testing Docker image..."
-  #       docker run --rm -d --name test-container -p 8501:8501 \
-  #         -e ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }} \
-  #         -e MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }} \
-  #         -e MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }} \
-  #         -e MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }} \
-  #         -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-  #         -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-  #         -e AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }} \
-  #         -e CONTAINER_PORT=8501 \
-  #         -e DEBUG=false \
-  #         -e ENVIRONMENT=production \
-  #         -e TF_USE_LEGACY_KERAS=1 \
-  #         -e CUDA_VISIBLE_DEVICES=-1 \
-  #         openstack-rca-system:${{ github.sha }}
+        echo "🧪 Testing Docker image..."
+        docker run --rm -d --name test-container -p 8501:8501 \
+          -e ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }} \
+          -e MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }} \
+          -e MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }} \
+          -e MLFLOW_S3_ENDPOINT_URL=${{ secrets.MLFLOW_S3_ENDPOINT_URL }} \
+          -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+          -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+          -e AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }} \
+          -e CONTAINER_PORT=8501 \
+          -e DEBUG=false \
+          -e ENVIRONMENT=production \
+          -e TF_USE_LEGACY_KERAS=1 \
+          -e CUDA_VISIBLE_DEVICES=-1 \
+          openstack-rca-system:${{ github.sha }}
         
-  #       echo "⏳ Waiting for container to start..."
-  #       sleep 30
+        echo "⏳ Waiting for container to start..."
+        sleep 30
         
-  #       echo "🔍 Checking container health..."
-  #       curl -f http://localhost:8501/_stcore/health || echo "Health check failed"
+        echo "🔍 Checking container health..."
+        curl -f http://localhost:8501/_stcore/health || echo "Health check failed"
         
-  #       echo "🛑 Stopping test container..."
-  #       docker stop test-container
+        echo "🛑 Stopping test container..."
+        docker stop test-container
         
-  #       echo "✅ Docker image test completed"
+        echo "✅ Docker image test completed"
         
-  #   - name: Push Docker image
-  #     run: |
-  #       echo "📤 Pushing Docker image to Docker Hub..."
-  #       docker tag openstack-rca-system:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/openstack-rca-system:${{ github.sha }}
-  #       docker push ${{ secrets.DOCKER_USERNAME }}/openstack-rca-system:${{ github.sha }}
+    - name: Push Docker image
+      run: |
+        echo "📤 Pushing Docker image to Docker Hub..."
+        docker tag openstack-rca-system:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/openstack-rca-system:${{ github.sha }}
+        docker push ${{ secrets.DOCKER_USERNAME }}/openstack-rca-system:${{ github.sha }}
         
-  #       echo "✅ Docker image pushed successfully"
+        echo "✅ Docker image pushed successfully"
         
-  #   - name: Upload Docker artifacts
-  #     uses: actions/upload-artifact@v4
-  #     with:
-  #       name: docker-artifacts
-  #       path: |
-  #         docker-image-info.json
-  #         Dockerfile
-  #       retention-days: 7
+    - name: Upload Docker artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: docker-artifacts
+        path: |
+          docker-image-info.json
+          Dockerfile
+        retention-days: 7
         
-  #   - name: Create Docker summary
-  #     run: |
-  #       echo "## 🐳 Docker Build Summary" >> $GITHUB_STEP_SUMMARY
-  #       echo "" >> $GITHUB_STEP_SUMMARY
-  #       echo "### ✅ Completed:" >> $GITHUB_STEP_SUMMARY
-  #       echo "- Docker image built successfully" >> $GITHUB_STEP_SUMMARY
-  #       echo "- Image tested locally" >> $GITHUB_STEP_SUMMARY
-  #       echo "- Image pushed to Docker Hub" >> $GITHUB_STEP_SUMMARY
-  #       echo "" >> $GITHUB_STEP_SUMMARY
-  #       echo "### 📊 Image Details:" >> $GITHUB_STEP_SUMMARY
-  #       echo "- Image: ${{ secrets.DOCKER_USERNAME }}/openstack-rca-system:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-  #       echo "- Tag: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-  #       echo "- Status: Ready for deployment" >> $GITHUB_STEP_SUMMARY
-  #       echo "" >> $GITHUB_STEP_SUMMARY
-  #       echo "### ⚠️ Test Status:" >> $GITHUB_STEP_SUMMARY        
+    - name: Create Docker summary
+      run: |
+        echo "## 🐳 Docker Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Completed:" >> $GITHUB_STEP_SUMMARY
+        echo "- Docker image built successfully" >> $GITHUB_STEP_SUMMARY
+        echo "- Image tested locally" >> $GITHUB_STEP_SUMMARY
+        echo "- Image pushed to Docker Hub" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Image Details:" >> $GITHUB_STEP_SUMMARY
+        echo "- Image: ${{ secrets.DOCKER_USERNAME }}/openstack-rca-system:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Tag: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Status: Ready for deployment" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ⚠️ Test Status:" >> $GITHUB_STEP_SUMMARY        
 
   deploy-infrastructure:
     name: Deploy to ECS/EC2 Infrastructure
@@ -475,18 +476,8 @@ jobs:
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy'
     
     env:
-      ECS_CLUSTER: openstack-rca-cluster
-      ECS_SERVICE: openstack-rca-service
-      ECS_TASK_DEFINITION: openstack-rca-task
-      ECS_CONTAINER_NAME: openstack-rca-container
-      ECS_CONTAINER_PORT: 8501
-      ECS_CPU: 128
-      ECS_MEMORY: 256
-      ECS_DESIRED_COUNT: 1
-      ECS_MIN_COUNT: 1
-      ECS_MAX_COUNT: 3
-      ECS_CAPACITY_PROVIDER: openstack-rca-capacity-provider
-    
+      CONTAINER_NAME: openstack-rca-container
+      CONTAINER_PORT: 7051    
     steps:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
@@ -556,7 +547,7 @@ jobs:
         
         # Run the container with env-file
         echo "🚀 Starting application container..."
-        ssh -i ${{ env.SSH_KEY_PATH }} -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@"${{ env.public_ip }}" "docker run -d --env-file /home/ec2-user/.env --name ${{ env.CONTAINER_NAME }} -p ${{ env.CONTAINER_PORT }}:${{ env.CONTAINER_PORT }} ${{ env.DOCKER_IMAGE_URI }}"
+        ssh -i ${{ env.SSH_KEY_PATH }} -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@"${{ env.public_ip }}" "docker run -d --env-file /home/ubuntu/.env --name ${{ env.CONTAINER_NAME }} -p ${{ env.CONTAINER_PORT }}:${{ env.CONTAINER_PORT }} ${{ env.DOCKER_IMAGE_URI }}"
         
         # Wait for container to start
         echo "⏳ Waiting for container to start..."
