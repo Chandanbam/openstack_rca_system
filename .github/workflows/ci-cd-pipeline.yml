@@ -396,7 +396,7 @@ jobs:
     - name: Build and test Docker image
       run: |
         echo "🐳 Building Docker image..."
-        docker build -t openstack-rca-system:latest .
+        docker build -t chandantech/openstack-rca-system:latest .
         
         # Create .env file for Docker test
         cat > .env << EOF
@@ -410,7 +410,7 @@ jobs:
         EOF
         
         echo "🧪 Testing Docker image..."
-        docker run --rm -d --name test-container -p 8501:8501 \
+        docker run --rm -d --name test-container -p 7051:7051 \
           -e ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }} \
           -e MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }} \
           -e MLFLOW_ARTIFACT_ROOT=${{ secrets.MLFLOW_ARTIFACT_ROOT }} \
@@ -418,7 +418,7 @@ jobs:
           -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
           -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
           -e AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }} \
-          -e CONTAINER_PORT=8501 \
+          -e CONTAINER_PORT=7051 \
           -e DEBUG=false \
           -e ENVIRONMENT=production \
           -e TF_USE_LEGACY_KERAS=1 \
@@ -439,7 +439,7 @@ jobs:
     - name: Push Docker image
       run: |
         echo "📤 Pushing Docker image to Docker Hub..."        
-        docker push ${{ secrets.DOCKER_USERNAME }}/openstack-rca-system:latest
+        docker push chandantech/openstack-rca-system:latest
         
         echo "✅ Docker image pushed successfully"
         

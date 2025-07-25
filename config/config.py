@@ -86,7 +86,7 @@ class Config:
     MLFLOW_CONFIG = {
         # Core MLflow settings
         'tracking_uri': os.getenv('MLFLOW_TRACKING_URI'),
-        'experiment_name': 'openstack_rca_system_production',
+        'experiment_name': 'openstack_rca_system_prod',
         
         # S3 Artifact Store with proper folder structure
         'artifact_root': os.getenv('MLFLOW_ARTIFACT_ROOT','s3://chandanbam-bucket/group6-capstone'),
